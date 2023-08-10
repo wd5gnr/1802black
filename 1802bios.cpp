@@ -26,6 +26,9 @@ int bios(uint16_t fn) {
     case 0xFF01:  // made up SCALL
       {
         uint16_t cv;
+        // Some code depends on RE.0 = D after a CALL or RETURN
+        reg[0xe]=(reg[0xe]&0xFF00)|(d&0xFF);
+
         cv = memread(reg[3]) << 8;
         cv |= memread(reg[3] + 1);
         x = 2;
@@ -41,6 +44,8 @@ int bios(uint16_t fn) {
       break;
 
     case 0xFF02:  //  made us RET
+        // Some code depends on RE.0 = D after a CALL or RETURN
+        reg[0xe]=(reg[0xe]&0xFF00)|(d&0xFF);
       reg[2]++;
       reg[3] = reg[6];
       reg[6] = memread(reg[2]) << 8;
@@ -86,7 +91,7 @@ int bios(uint16_t fn) {
     case 0xf809:
       {
         char c = d;
-        if (c == 0xC && fn == 0xFF03) {
+        if (c == 0xC && (fn==0xf809 || fn == 0xFF03)) {
           Serial.print("\x1b[2J");
         } else
           Serial.print(c);
