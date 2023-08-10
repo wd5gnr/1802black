@@ -131,10 +131,7 @@ On the original KIM UNO hardware we have the following LEDs.
     |        |   STATE|  STATE |         |   |     MEM |       |
     +--------+--------+--------+---------+---+---------+-------+
 ```
-<<<<<<< HEAD
 
-=======
->>>>>>> d9fc136ab1312dbf0da8e2026ca40f4fa8aacde5
 (Thanks for the graphic Oscar)
 
 The only LEDs on the Blackpill version is the Q LED on PC13.
