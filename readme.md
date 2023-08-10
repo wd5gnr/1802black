@@ -123,12 +123,14 @@ You can also read and write Intel hex files with X and Y commands. Note that Y w
 LEDs
 ===
 On the original KIM UNO hardware we have the following LEDs.
+```
     +--------+--------+--------+---------+---+---------+-------+
     | LED1   | LED2   | LED3   |  LED4   |   |  LED5   |  LED6 |
     +--------+--------+--------+---------+---+---------+-------+
     |    . Q |  . LOAD|  . RUN |   . EF4 |   |   . PROT|       |
     |        |   STATE|  STATE |         |   |     MEM |       |
     +--------+--------+--------+---------+---+---------+-------+
+```
 
 (Thanks for the graphic Oscar)
 
