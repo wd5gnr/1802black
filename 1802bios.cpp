@@ -27,7 +27,7 @@ int bios(uint16_t fn) {
       {
         uint16_t cv;
         // Some code depends on RE.0 = D after a CALL or RETURN
-        reg[0xe]=(reg[0xe]&0xFF00)|(d&0xFF);
+        reg[0xe] = (reg[0xe] & 0xFF00) | (d & 0xFF);
 
         cv = memread(reg[3]) << 8;
         cv |= memread(reg[3] + 1);
@@ -44,8 +44,8 @@ int bios(uint16_t fn) {
       break;
 
     case 0xFF02:  //  made us RET
-        // Some code depends on RE.0 = D after a CALL or RETURN
-        reg[0xe]=(reg[0xe]&0xFF00)|(d&0xFF);
+      // Some code depends on RE.0 = D after a CALL or RETURN
+      reg[0xe] = (reg[0xe] & 0xFF00) | (d & 0xFF);
       reg[2]++;
       reg[3] = reg[6];
       reg[6] = memread(reg[2]) << 8;
@@ -91,7 +91,7 @@ int bios(uint16_t fn) {
     case 0xf809:
       {
         char c = d;
-        if (c == 0xC && (fn==0xf809 || fn == 0xFF03)) {
+        if (c == 0xC && (fn == 0xf809 || fn == 0xFF03)) {
           Serial.print("\x1b[2J");
         } else
           Serial.print(c);
@@ -148,13 +148,13 @@ int bios(uint16_t fn) {
         int n = 0;
         int l = 254;
         uint16_t ptr = reg[0xF];
+        char echo;
+
         if (fn == 0xFF69) l = reg[0xc] - 1;
         do {
           do {
-            char echo;
             c = Serial.read();
             echo = c;
-            if (c > 0 && (reg[0xe] & 0x100)) Serial.print(echo);
           } while (c == -1 || c == 0);
           if (c == 0xD) {
             c = 0;
@@ -168,19 +168,21 @@ int bios(uint16_t fn) {
             if (n) {
               ptr--;
               n--;
+              if (reg[0xe] & 0x100) Serial.print("\x8 \x8"); 
             }
             continue;
           }
           if (c && n == l) continue;
           memwrite(ptr++, c);
           n++;
+          if (c >=0 && (reg[0xe] & 0x100)) Serial.print(echo);
         } while (c != 0);
 
         p = 5;
       }
 
       break;
-
+    
       // NOTE MUST REDO THIS ONE... DOES NOT WORK IN ROM!
     case 0xFF12:
       {
