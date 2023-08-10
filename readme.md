@@ -131,19 +131,22 @@ On the original KIM UNO hardware we have the following LEDs.
     |        |   STATE|  STATE |         |   |     MEM |       |
     +--------+--------+--------+---------+---+---------+-------+
 ```
+<<<<<<< HEAD
+
+=======
+>>>>>>> d9fc136ab1312dbf0da8e2026ca40f4fa8aacde5
 (Thanks for the graphic Oscar)
 
 The only LEDs on the Blackpill version is the Q LED on PC13.
 
 Known Problems
 ===
-* There were two issues in v22 that are now fixed (see above)
 * The BIOS is lightly tested and may not have all the same private semantics as compatible BIOS
-* XModem uploads do not complete even with slow paced XMODEM that works on real hardware
+
 
 Future Plans
 ===
-* Who knows? An SD card maybe?
+* Who knows? An SD card maybe? 1861 graphics? Banked memory or ROMs? 
 
 Hackaday
 ===
