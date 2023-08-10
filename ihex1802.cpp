@@ -4,20 +4,18 @@
 
 // Intel hex stuff
 
-int ihex1802::getch(void)
-{
+int ihex1802::getch(void) {
   int c;
-  while ((c=Serialread())==-1);
+  while ((c = Serialread()) == -1)
+    ;
   return c;
 }
 
-void ihex1802::setmem(uint16_t a, uint8_t d)
-{
-  ram[a&MAXMEM]=d;
+void ihex1802::setmem(uint16_t a, uint8_t d) {
+  ram[a & MAXMEM] = d;
 }
 
-int ihexo1802::putch(int c)
-{
+int ihexo1802::putch(int c) {
   Serial.print((char)c);
   return 0;
 }

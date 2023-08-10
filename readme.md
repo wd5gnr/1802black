@@ -1,51 +1,35 @@
-1802 UNO v23
+1802 UNOBlack v1
 ===
 Starting with Oscar's KIM-UNO code, I changed out the 6502 for an 1802.
 See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for more details.
 
 What's New
 ===
-v23:
-* Fixed instruction coding for ADCI
-* Fixed corner case for branch instructions
-* Altered BIOS to allow ROM strings in FF12 (lightly tested)
+v1:
+* Blackpill target
 
-v22:
-* Faster execution due to Oscar's patch (set NICE_VALUE in 1802config.h)
-* You can create multiple non-overlapping ROMs (see 1802rom.h for details)
-* All 3 demos now in ROM (Idiot at 8000, Etops at 9000, and Hi Lo at C000)
 
 
 Configuration
 ===
-You have 1K of RAM at 0000 and no interrupts.
-There is a small ROM at 8000
-To set the ROM you must reflash the Arduino
-The various commands to save and read memory only operate on RAM
-You can "Load" through the ROM but it won't change the contents
+You have 32K of RAM at 0000 and no interrupts.
+There is a 32K ROM at 8000
+To change the ROM you must reflash the Arduino
 
-There are three demo ROMs:
-* IDIOT/4 at location 8000 (see below)
-* ETOPS monitor (see http://www.elf-emulation.com/software/rctops.html and below) at location 9000 (see below)
-* A HiLo game is at C000 (see below)
+The ROM installed is the STG ELF2K ROM which has Basic, Forth, an assembler, and a debugger along with other tools.
 
 To run it put C0 XX 00 at location 0 to jump to it (where XX is 80 for for IDIOT/4, 90 for ETOPS, and C0 for Hi lo). 
 On power up (but not reset) the first 3 bytes of RAM initialize to C0 80 00.
 
-The file 1802rom.h only includes other files (1802idiot.h, 1802hilo.h, or 1802etops.h) so it is reasonably easy to flip different ROM images around and change where they load. Note that 1802 code is not always relocatable, so be sure you put ROM code where it will run correctly.
+The file 1802rom.h only includes other files so it is reasonably easy to flip different ROM images around and change where they load. Note that 1802 code is not always relocatable, so be sure you put ROM code where it will run correctly.
 
 General Operation Overview
 ===
-Nominally, you can operate the entire device via the built-in keypad and display. It works (at least externally) like a regular ELF. To enter data, select
-Load mode (DA), input hex bytes followed by the In key (+). Pres ST or RS (stop or Reset) to exit load mode.
-
-Pres Go to execute the program at 0000 after reset or from where it left off if stopped. You can use ST or RS here depending of if you want to halt execution or reset.
-
-To examine memory, press memory protect (PC) and then use load mode which will ignore any hex input you provide (just keep pressing + to advance through memory).
+The blackpill version, so far, does NOT support the Kim UNO hardware. You must operate via serial port. There are two modes selected by PB2. If PB2 is low, the serial terminal is just a terminal (no front panel mode; see below) and the ROM at 8000 executes. If it is high, you will be in front panel mode (see below). To boot the ROM in front panel mode and flip the terminal, enter: G| (just two characters). Note that with the included ROM, executing SHOW CPU will trigger a breakpoint to the meta monitor (see below).
 
 Serial Terminal Front Panel
 ---
-If you have a serial terminal (e.g., a PC running a terminal program) you can use it in one of three modes. First--the default--is front panel mode. Keys on the terminal map to keys on the keyboard (e.g., G is GO, R is RS). There are also commands for dumping memory, loading memory, etc. Because the terminal can do everything the front panel can, you shouldn't need a front panel to operate 1802UNO. It should run on a plain Arduino Pro Mini or similar.
+If you have a serial terminal (e.g., a PC running a terminal program) you can use it in one of three modes. First--the default--is front panel mode. Keys on the terminal map to keys on the keyboard (e.g., G is GO, R is RS). There are also commands for dumping memory, loading memory, etc. 
 
 Serial Terminal Mode
 ---
@@ -53,15 +37,17 @@ If you use the | command from front panel mode, the serial terminal will become 
 
 Meta Monitor
 ---
-While in front panel mode you can also press \ to enter the meta-monitor. This allows you to perform a lot of functions from the terminal. Note that while front panel commands don't work while in this mode, you can send the front panel a command using the "." command (that is, .R is reset, .? dumps memory, etc.).
+While in front panel mode you can also press \ to enter the meta-monitor. This allows you to perform a lot of functions from the terminal. Note that while front panel commands don't work while in this mode, you can send the front panel a command using the "." command (that is, .R is reset, .? dumps memory, etc.). When running the included ROM, entering SHOW CPU will also enter the monitor. To resume from that, issue: R3=8BEE and then C. 
 
 Loading Programs
 ---
 Using the keypad to load programs is a bit tedious. If you have a program already entered you can save it to EEPROM and later restore it using the keyboard or the terminal. In addition, the terminal can read a simplified hex format or Intel hex format files. It can also dump memory in both of those formats. To save RAM to EEPROM hold down SST for one second or use the > terminal command. Reverse the operation by holding down AD for 1 second or using the < command.
 
+This only works on the first 1K of memory and is not recommended!
+
 Keyboard
 ===
-The keyboard is mapped like this:
+The keyboard doesn't exist, but it is  mapped like this:
 
 * Go - Run
 * ST - Stop running or stop load mode
@@ -107,6 +93,8 @@ Other Serial Commands
 * Y - Write 1K RAM to Intel hex file (hint, you can delete all the zero lines and keep the last EOF line using a text editor)
 * \\ - Enter monitor mode. This is a meta-monitor running in the host Arduino. See section below for more details
 
+Remember, you can issue any of these commands from the meta-monitor by using a period. So .; toggles tracing or .! shows the displays.
+
 Using the Serial Port from an 1802 Program
 ===
 In addition, you can write to the terminal from 1802 code at port 1. If you
@@ -116,7 +104,8 @@ the terminal will not act as a front panel anymore.
 The 1802 code can control that mode by writing a 1 to port 7 to disable the
 serial front panel. A zero will reenable it.
 
-There is a simple terminal program in the examples directory called Echo.txt. Remember to turn the terminal front panel off with | before you try this.
+In addition, there is support for a large amount of Mike Riley's ELF BIOS.
+
 
 Loading and Saving RAM
 ===
@@ -133,7 +122,7 @@ You can also read and write Intel hex files with X and Y commands. Note that Y w
 
 LEDs
 ===
-
+On the original KIM UNO hardware we have the following LEDs.
     +--------+--------+--------+---------+---+---------+-------+
     | LED1   | LED2   | LED3   |  LED4   |   |  LED5   |  LED6 |
     +--------+--------+--------+---------+---+---------+-------+
@@ -143,15 +132,17 @@ LEDs
 
 (Thanks for the graphic Oscar)
 
+The only LEDs on the Blackpill version is the Q LED on PC13.
+
 Known Problems
 ===
 * There were two issues in v22 that are now fixed (see above)
 * The BIOS is lightly tested and may not have all the same private semantics as compatible BIOS
-
+* XModem uploads do not complete even with slow paced XMODEM that works on real hardware
 
 Future Plans
 ===
-* All done for now. (However, see Branch Pixie for Oscar's OLED 1861 Pixie chip simulation)
+* Who knows? An SD card maybe?
 
 Hackaday
 ===
@@ -168,18 +159,15 @@ Port Summary
 
 BIOS
 ===
-There is experimental support for a small number of BIOS function when BIOS=1 (see 1802config.h). These BIOS calls are not written in 1802 but are handled by the Arduino host. The baud rate is fixed so any BIOS function that in the "standard" BIOS that takes a baud rate value will ignore it. 
+There is experimental support for a small number of BIOS function when BIOS=1 (see 1802config.h). These BIOS calls are not written in 1802 but are handled by the Arduino host. The baud rate is fixed so any BIOS function that in the "standard" BIOS that takes a baud rate value will ignore it. Other than a 1 sets the echo flag.
 
-At present, there are two BIOS functions tested, and two non-standard support functions.
+To use the BIOS you must set up SCRT:
 * 0xFF3F - Set up SCRT. Put a return address in R6 and do a LBR to this address. On return, P=3 at your return address. R4 will be set up to do an SCRT call and R5 will be set up to do an SCRT return.
-* 0xFF66 - Print the string after the call to the terminal until a zero byte. So to print ABC<CR><LF> you would use the following code:
-     D5 FF 66 41 42 43 0D 0A 00
 
 In addition, the SCRT routines use the non-standard addresses 0xFF01 and 0xFF02. Since this is set up by 0xFF3F, even if they change, you should not notice.
 
-There is an example of using SCRT in the examples directory called BIOS.TXT. Note that when stepping "through" a BIOS call, you will see a bogus instruction fetch, but the operation should complete as intended.
+Note that when stepping "through" a BIOS call, you will see a bogus instruction fetch, but the operation should complete as intended.
 
-There are a few other BIOS calls untested. Please report issues or success using these calls:
 
 * 0xFF2d - Baud rate call, does nothing since we do not support multiple baud rates
 * 0xFF03 - Send character in D to terminal and translate 0xC to 0x1B.
@@ -194,156 +182,18 @@ There are a few other BIOS calls untested. Please report issues or success using
 * 0xFF18 - Copy string from [RF] to [RD]
 * 0xFF1B - Copy bytes from [RF] to [RD] for count RC
 
+A few more have been added to suppor the STG ROM, see 1802bios.cpp
 
 Building
 ===
-I used Platform.io to build. You may need to adjust the .ini file to suit. See http://platformio.org.
+Platform IO was used originally but with the blackpill it is  a problem to make the USB serial work with it. So the blackpill version uses the Arduino IDE with these settings:
 
-To build and upload try:
-
-    pio run --target upload
-
-Tool
-===
-The file binto1802 will convert a binary file into a loadable file at address 0. Of course, you can edit the file and change this address. You can compile this tool with:
-
-     gcc -o binto1802 binto1802.c
-
-If you have an Intel hex file or other format, you can convert it to binary with srec_cat.
-
-A Note About Compatiblity
-===
-There is quite a bit of software out there for the 1802 that uses a terminal
-such as monitors, Basic, Forth, etc. In many cases, these programs expect
-to drive their own serial port via the Q and EF ports. This approach won't
-work with the simulator. I may try to port or recreate parts of Riley's BIOS although it will require being "ROMed" as the simulator only has 1K of RAM.
-
-Of course, if you have the source to a program you can change it to use the serial ports (very easy to read and write serial compared to bit-banging).
-
-Available ROMS
-===
-* 1802hilo.h - A hilo game (the default)
-* 1802etops.h - A keyboard/LED-based monitor
-* 1802idiot.h - A monitor that uses the serial port
-
-Using IDIOT/4
-===
-IDIOT/4 is a monitor by Lee Hart. I hacked it up to use the virutalized serial port instead of bit banging. You need a terminal at 9600 8 N and 1 and you'll want local echo on.
-
-You have to switch the terminal to raw mode (| command) before you can issue commands to the monitor. That change stays in force until you reboot the simulator (not press the reset button). Then you can no longer use the front panel commands.
-
-So the general work flow would be:
-
-G |
-
-You'll get a sign on message and a prompt. The basic commands are dump memory:
-
-?M 8000 20
-
-Dump registers (shows them in memory; you need a decoder ring to know which is which)
-
-?R
-
-Load memory 
-!M 300 20 40 10
-
-You can use a semicolon to keep going after a line (e.g., !M 300 20 40 10;)
-(NOTE: That seems to not work; perhaps a bug in the emulator or in my port
-of the monitor code)
-
-Run a program at 100.
-
-$P 100
-
-There are more things you can do. See http://www.retrotechnology.com/memship/mship_idiot.html for a good write up.
-
-NOTE: IDIOT scans backwards for memory. The simulator maps the 1K block to every 1K block from 0000-7FFF. So it will find the RAM at 7C00 which is fine.
-
-Sample ETOPS Session
-===
-From terminal enter:
-
-    LC0$$80$$00$$R
-    02G
-    01$
-    $00$
-    $
-    DE$
-    $AD$
-    $BE$
-    $EF$
-    $
-    R
-    01G
-    01$
-    $00$
-    $
-    $
-    $
-    $
-    $
-    $
-    $
-    $
-    $R
-
-Note that if you send the $ characters too fast, you may get such a fast press of EF4 that the 1802 software running will miss.
-
-The first line loads the jump to the ETOPS monitor.
-
-The 02G tells ETOPS to load memory. The address is set to 0100.
-
-Then the four bytes DE AD BE EF are set.
-
-A reset and then an ETOP view command (01G) follows. After entering the
-same address, you should see the bytes entered appear again.
-
-Of course, you can do all this from the hardware keyboard, as well:
-
-    DA C 0 + 8 0 + 0 0 + RS
-    0 2 GO
-    0 1 + 0 0 +
-    D E + A D + B E + E F +
-    RS
-    0 1 GO
-    0 1 + 0 0 +
-    \+ + + + RS
-
-Playing HiLo
-===
-See https://groups.yahoo.com/neo/groups/cosmacelf/files/HI%20LO/
-
-The original instructions have to be modified a bit. Be sure and hold the
-\+ key down long enough for the Q LED to light when guessing. The blink blocks
-so it is easy to press it and release before the 1802 "looks" at it.
-
-In addition, the LEDs don't "bink" because they are 7 segment. What you will see is for a high you will see 00/F0 for a low you will see 00/0F and when the number is correct you will see it blink between 00 and the number.
-
-Once the game is over and it shows you the # of guesses you made, you'll have to press RESET and run for a new game.
-
-Note the code required a little patching to move the data out of ROM.
-
-Here's the original "read me" text for the game:
-
->ELF HI LO Game Instructions:
->
->The purpose of this game is to guess a number selected by the computer between 1 and 100 in as few tries as possible.
->
->Reset and Run the ELF. All the LED's will be blinking. Press I and the computer will select a secret number, then the Q LED will come on, indicating that your input is needed. Enter a number using the toggle switches then press I. 
->
->At that point, one of 3 things can happen:
->
->1.- Your number is higher than the secret number, and so the HIGH nibble on the LED display (i.e. the leftmost 4 LED's) will blink
->
->2.- Your number is lower than the secret number and the LOW nibble on the LED display (i.e. the rightmost 4 LED's) will blink
->
->3.- Your guessed the correct number and it will appear on the LED display and blink
->
->Press I again and the Q LED will come on and you will be able to enter another guess as before. If you guessed the correct number, then the number of tries will be displayed and blinked and the game will be over. 
->
->Hope you like it.
->
->Walid Maalouli
+* Board: STM32 MCU Based Boards | Generic STM32F4 series
+* Board Part Number: Blackpill F401CC
+* C Runtime: Newlib Nano (default)
+* USB Support: CDC (generic SERIAL supersede USART)
+* USART Support: Enabled (generic SERIAL)
+* USB Speed: Low/Full Speed
 
 Built In Monitor
 ===
