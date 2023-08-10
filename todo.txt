@@ -1,0 +1,18 @@
+1) Need to make the BIOS do echo for you (*)
+2) SHOW CPU drops to monitor at 8BED (due to illegal op code 0x68 which should be a nop! BONUS trigger a breakpoint on command woo hoo)
+3) SHOW MEM is wrong (x)
+4) Forth has something wrong with it (tied to #3 x)
+5) Visual doesn't clear the screen properly (maybe)
+6) Backspace doesn't work (x)
+7) Platform I/O doesn't work
+8) Ram test shows two errors, but now exits immediately (x)
+9) Some odd behavior surround breakpoints
+10) Consider reading the input switch to force autostart/terminal mode instead of front panel mode
+11) Local echo (x)
+
+Old version fixes
+Change monitor help to read $$ instead of +
+Newline issue in breakpoint display
+Newline issue in * Regs display
+Consider updating trace format to match
+Replace BIOS
