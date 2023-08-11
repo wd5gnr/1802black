@@ -326,16 +326,21 @@ Hard Breakpoint
 Code a 68 (an illegal 1802 instruction) to force a jump to the built-in
 monitor.
 
-Video (From Osbolescence Guaranteed)
-===
 
+Video Walkthrough
+===
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/mtRIymMLkuw/0.jpg)](https://youtu.be/mtRIymMLkuw "1802Black COSMAC ELF on Blackpill")
 
+
+Video (From Osbolescence Guaranteed)
+===
 
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/1BrtXRscLn8/0.jpg)](http://www.youtube.com/watch?v=1BrtXRscLn8 "UNO1802 with Pixie OLED display")
 
 Note: This video shows the "Pixie" branch code with the OLED but the base code is the same as this branch.
 
+Serial Frontpanel Walkthrough
+===
 If you are having trouble with using the serial port, this might help:
 
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/lVVFwcWDBJQ/0.jpg)](http://www.youtube.com/watch?v=lVVFwcWDBJQ "Serial keyboard walkthrough")
