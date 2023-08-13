@@ -102,7 +102,7 @@ int run(void) {
     Serial.print(':');
     print2hex(inst);
     Serial.print(" D=");
-    print2hex(d);  // always zero?
+    print2hex(d);  
     Serial.print(" P=");
     print2hex(p);
     Serial.print(" X=");

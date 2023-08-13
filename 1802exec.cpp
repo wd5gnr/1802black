@@ -83,7 +83,7 @@ int exec1802(int ch) {
     reset();
     return 0;
   }
-  // end temporary
+  
   if (ch == '@' && mp == 0)  // load memory from serial
   {
     uint16_t ptr = 0;
@@ -166,7 +166,7 @@ int exec1802(int ch) {
       print2hex(ram[ptr]);
       group++;
       if (group == 16) {
-        Serial.print('\n');
+        Serial.print("\r\n");
         group = 0;
       } else Serial.print(' ');
     }

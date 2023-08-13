@@ -90,6 +90,7 @@ void setup() {
   setupUno();
   reset();
   digitalWrite(PC13, 1);  // Q LED is inverted
+  Serial.println(VERSION);
   //  Serial.print(F(VERSION " Free Memory=")); // just a little check, to avoid running out of RAM!
   //  Serial.println(freeRam());
 

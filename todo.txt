@@ -11,8 +11,8 @@
 11) Local echo (x)
 
 Old version fixes
-Change monitor help to read $$ instead of +
-Newline issue in breakpoint display
-Newline issue in * Regs display
-Consider updating trace format to match
-Replace BIOS
+Change monitor help to read $$ instead of + (x)
+Newline issue in breakpoint display (x) 
+Newline issue in * Regs display (x) 
+Consider updating trace format to match (x)
+Replace BIOS (x) 
