@@ -131,6 +131,16 @@ int exec1802(int ch) {
         Serial.print(threeHex[i][j], HEX);
       }
     Serial.println("");
+    Serial.print("LEDS: Q=");
+    Serial.print(q);
+    Serial.print(" Load=");
+    Serial.print(loadstate!=0);
+    Serial.print(" Run: ");
+    Serial.print(runstate!=0);
+    Serial.print(" EF4=");
+    Serial.print(ef4!=0);
+    Serial.print(" MP=");
+    Serial.println(mp!=0);
     return 1;
   }
   if (ch == 'Y' || ch == 'y')  // write intel hex
@@ -222,6 +232,7 @@ int exec1802(int ch) {
   }
   if (runstate == 2 && ch != KEY_DA) runstate = 0;
   // set memory protect on without race (state 2 while held, then state 1)
+  // NOTE: If you do this from serial port you will stick in state 2 until you send another key that gets through here
   if (ch == KEY_PC) {
     if (mp == 0) mp = 2;
     if (mp == 1) mp = 0;
