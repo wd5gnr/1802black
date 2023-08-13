@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "PlatformIO",
+			"task": "Upload (blackpill)",
+			"problemMatcher": [
+				"$platformio"
+			],
+			"label": "PlatformIO: Upload (blackpill)",
+			"group": "build"
+		},
+		{
+			"type": "PlatformIO",
+			"task": "Remote Upload (blackpill)",
+			"problemMatcher": [
+				"$platformio"
+			],
+			"label": "PlatformIO: Remote Upload (blackpill)",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

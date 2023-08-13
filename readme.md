@@ -1,10 +1,13 @@
-1802 UNOBlack v1
+1802 UNOBlack v2
 ===
 Starting with Oscar's KIM-UNO code, I changed out the 6502 for an 1802.
 See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for more details.
 
 What's New
 ===
+v2:
+* Moved back to platformio. Should still build with Arduino IDE. Note: when using pio, leaving DFU mode doesn't work. You must turn off the bootloader and reset to run code. Not sure why.
+
 v1:
 * Blackpill target
 
@@ -195,6 +198,8 @@ Platform IO was used originally but with the blackpill it is  a problem to make 
 * USB Support: CDC (generic SERIAL supersede USART)
 * USART Support: Enabled (generic SERIAL)
 * USB Speed: Low/Full Speed
+
+As of v2, Platform IO can be used again. You may have to reboot the CPU to get out of DFU mode when uploading though. The Arduino IDE should also work. Assuming you have PIO installed, go to the top directory (that is, the one that holds the src directory) and issued the command: pio run --target upload.
 
 Built In Monitor
 ===
