@@ -224,7 +224,20 @@ int mon_checkbp(void) {
   return 1;
 }
 
-
+// dump printable characters
+static void adump(unsigned a)
+{
+  int z;
+  Serial.print(F("  "));
+  for (z = 0; z < 16; z++)
+  {
+    char b = memread(a + z);
+    if (b >= ' ')
+      Serial.print(b);
+    else
+      Serial.print('.');
+  }
+}
 
 int monitor(void) {
   int noarg;
@@ -302,7 +315,7 @@ int monitor(void) {
       case 'R':
         if (noarg) {
           int i;
-          for (i = 0; i <= 15; i += 2) {
+          for (i = 0; i <= 15; i += 4) {
             Serial.print(F("R"));
             Serial.print(i, HEX);
             Serial.print(':');
@@ -311,6 +324,14 @@ int monitor(void) {
             Serial.print(i + 1, HEX);
             Serial.print(':');
             print4hex(reg[i + 1]);
+            Serial.print(F("\tR"));
+            Serial.print(i + 2, HEX);
+            Serial.print(':');
+            print4hex(reg[i + 2]);
+            Serial.print(F("\tR"));
+            Serial.print(i + 3, HEX);
+            Serial.print(':');
+            print4hex(reg[i + 3]);
             Serial.println();
           }
           Serial.print(F("(10) X:"));
@@ -451,7 +472,7 @@ int monitor(void) {
               if (terminate == '\r' || terminate == '=') {
                 Serial.print('\n');
                 print4hex(arg);
-                Serial.print(": ");
+                Serial.print(F(": "));
               }
               d = readhex(&terminate, 0);
               if (terminate != ';' || noread == 0)
@@ -464,8 +485,11 @@ int monitor(void) {
             if (arg2 == 0) arg2 = 0x100;
             limit = (arg + arg2) - 1;
             if (limit < arg) limit = 0xFFFF;  // wrapped around!
-            for (i = arg; i <= limit; i++) {
+            Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
+            for (i = arg; i <= limit; i++)
+            {
               if (ct % 16 == 0) {
+                if (ct!=16) adump(i - 16);
                 Serial.println();
                 print4hex(i);
                 Serial.print(F(": "));
@@ -477,6 +501,7 @@ int monitor(void) {
               if (i == 0xFFFF) break;  // hit limit
               if (Serialread() == 0x1b) break;
             }
+            adump(i - 16);
           }
         }
         break;
