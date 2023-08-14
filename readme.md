@@ -6,6 +6,7 @@ See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for mo
 What's New
 ===
 v2:
+* Updated: Removed platformio! The USB serial port was unreliable in subtle ways when pushing a lot of data. With the Arduino library it seems fine. Rather than troubleshoot it...
 * Moved back to platformio. Should still build with Arduino IDE. Note: when using pio, leaving DFU mode doesn't work. You must turn off the bootloader and reset to run code. Not sure why.
 
 v1:
@@ -190,7 +191,7 @@ A few more have been added to suppor the STG ROM, see 1802bios.cpp
 
 Building
 ===
-Platform IO was used originally but with the blackpill it is  a problem to make the USB serial work with it. So the blackpill version uses the Arduino IDE with these settings:
+Platform IO was used originally but with the blackpill it is  a problem to make the USB serial work reliably with it. So the blackpill version uses the Arduino IDE with these settings:
 
 * Board: STM32 MCU Based Boards | Generic STM32F4 series
 * Board Part Number: Blackpill F401CC
@@ -199,7 +200,6 @@ Platform IO was used originally but with the blackpill it is  a problem to make 
 * USART Support: Enabled (generic SERIAL)
 * USB Speed: Low/Full Speed
 
-As of v2, Platform IO can be used again. You may have to reboot the CPU to get out of DFU mode when uploading though. The Arduino IDE should also work. Assuming you have PIO installed, go to the top directory (that is, the one that holds the src directory) and issued the command: pio run --target upload.
 
 Built In Monitor
 ===
