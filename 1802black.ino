@@ -24,9 +24,9 @@ uint8_t curkey = 0;
 char threeHex[3][2];                     // LED display
 int dp[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };  // decimal points
 
-byte aCols[8] = { A5, 2, 3, 4, 5, 6, 7, 8 };  // note col A5 is the extra one linked to DP
-byte aRows[3] = { 9, 10, 11 };
-byte ledSelect[8] = { 12, 13, A0, A1, A2, A3, A7, A4 };  // note that A6 and A7 are not used at present. Can delete them.
+byte aCols[8] = { PA7, PA0, PA1, PA2, PA3, PA4, PA5, PA6 };  // note col A7 is the extra one linked to DP
+byte aRows[3] = { PB0, PB1, PB3 };  // oope we use PB_2 as sense switch... 
+byte ledSelect[8] = { PB4, PB5, PB6, PB7, PB8, PB9, PB10, PA8 };  // note that A6 and A7 are not used at present. Can delete them.
 
 byte dig[19] = {
   // bits     6543210
@@ -40,7 +40,7 @@ byte dig[19] = {
   0b01011111,  //6
   0b01110000,  //7
   0b01111111,  //8
-  0b01111011,  //9
+  0B01111011,  //9
   0b01110111,  //a
   0b00011111,  //b
   0b01001110,  //c
@@ -78,6 +78,7 @@ uint8_t tick = 0;
 
 // Set up everything
 void setup() {
+  // for some reason these MUST be PC13 and PB2 not PC_13/PB_2
   pinMode(PC13, OUTPUT);
   pinMode(PB2, INPUT_PULLUP);
   Serial.begin(9600);
@@ -85,7 +86,7 @@ void setup() {
     ;
   Serial.println(F("Wait"));
   // read switch on PCB
-  int sw = digitalRead(PB2);
+  int sw = digitalRead(PB_2);
 
   setupUno();
   reset();
@@ -143,12 +144,11 @@ int freeRam () {
 
 void setupUno() {
   int i;
-#if 0
+#if KEY_LED
   // --------- initialse for scanning keyboard matrix -----------------
   // set columns to input with pullups
   for (i=0;i<8;i++)
-  {  pinMode(aCols[i], INPUT);           // set pin to input
-     digitalWrite(aCols[i], HIGH);       // turn on pullup resistors
+  {  pinMode(aCols[i], INPUT_PULLUP);           // set pin to input
   }
   // set rows to output, and set them High to be in Neutral position
   for (i=0;i<3;i++)
@@ -182,7 +182,7 @@ void setdata(uint8_t d) {
 
 // Keep leds lit up
 void driveLEDs() {
-#if 0
+#if KEY_LED
   int led, col, ledNo, currentBit, bitOn;
   int byt,i;
 
@@ -284,7 +284,7 @@ void scanKeys() {
 
   ef4 = ef4term;  // replaces hardware
 
-#if 0
+#if KEY_LED
 
   // 0. disable driving the 7segment LEDs -----------------
   for (led=0;led<8;led++)

@@ -1,3 +1,5 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "arduino.useArduinoCli": true,
+    "arduino.additionalUrls": "https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json
 }

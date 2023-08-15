@@ -1,6 +1,8 @@
 /* Configuration stuff for 1802UNO */
 // Configuration
 
+#define KEY_LED 0   // only set to 1 if connected to hardware (warning: hardware not defined yet)s
+
 // Define to 1 for simulation monitor built-in
 #define MONITOR 1
 #define BIOS 1  // partial BIOS implementation (experimental)
