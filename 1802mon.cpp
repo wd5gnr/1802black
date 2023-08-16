@@ -502,6 +502,7 @@ int monitor(void) {
               if (Serialread() == 0x1b) break;
             }
             adump(i - 16);
+            SERIAL_DELAY;  // in case we are printing a lot, give CDC serial port a chance to catch up
           }
         }
         break;

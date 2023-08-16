@@ -15,7 +15,7 @@ uint8_t input(uint8_t port) {
 
 // Output to any port writes to the data display
 void output(uint8_t port, uint8_t val) {
-  if (port == SER_OUT) Serial.print((char)val);
+  if (port == SER_OUT) serputc(val);
   else if (port == LED_PORT) data = val;
   else if (port == A0_PORT) adlow = val;
   else if (port == A1_PORT) adhigh = val;

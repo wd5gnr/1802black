@@ -55,7 +55,15 @@ byte dig[19] = {
 
 
 
-
+// The STM32 USB CDC sometimes needs coaxing so this is broken out in case we need to do something special here
+// The problem appears intermittently...  a small delay after sending seems to fix it
+void serputc(int c)
+{
+  Serial.write((char)c);
+  // yield does not work here
+  //delay(1);  // seems to work for delay>=1, attempting to make it only occasionally doesn't seem to work either
+  SERIAL_DELAY;
+}
 
 
 // get and clear a key (from original code)
@@ -81,7 +89,7 @@ void setup() {
   // for some reason these MUST be PC13 and PB2 not PC_13/PB_2
   pinMode(PC13, OUTPUT);
   pinMode(PB2, INPUT_PULLUP);
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial)
     ;
   Serial.println(F("Wait"));

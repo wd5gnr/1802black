@@ -21,6 +21,8 @@ f809 - Send char
 #if BIOS == 1
 
 
+
+
 int bios(uint16_t fn) {
   switch (fn) {
     case 0xFF01:  // made up SCALL
@@ -80,7 +82,7 @@ int bios(uint16_t fn) {
         char c;
         do {
           c = memread(reg[6]++);
-          if (c) Serial.print(c);
+          if (c) serputc(c);
         } while (c);
         p = 5;
       }
@@ -92,9 +94,15 @@ int bios(uint16_t fn) {
       {
         char c = d;
         if (c == 0xC && (fn == 0xf809 || fn == 0xFF03)) {
-          Serial.print(F("\x1b[2J"));
+          serputc('\x1b');
+          serputc('[');
+          serputc('2');
+          serputc('J');
+//          Serial.print(F("\x1b[2J"));
         } else
-          Serial.print(c);
+        {
+          serputc(c);
+        }
         p = 5;
       }
       break;
@@ -110,7 +118,7 @@ int bios(uint16_t fn) {
           c = Serial.read();
           if (c > 0 && (reg[0xe] & 0x100)) {
             char echo = c;
-            Serial.print(echo);
+            serputc(echo);
           }
         } while (c == -1);
         d = c;
@@ -124,8 +132,9 @@ int bios(uint16_t fn) {
         char c;
         do {
           c = memread(reg[0xf]++);
-          if (c) Serial.print(c);
+          if (c) serputc(c);
         } while (c);
+        Serial.flush();
         p = 5;
       }
       break;
@@ -168,14 +177,14 @@ int bios(uint16_t fn) {
             if (n) {
               ptr--;
               n--;
-              if (reg[0xe] & 0x100) Serial.print(F("\x8 \x8")); 
+              if (reg[0xe] & 0x100) { serputc('\x8'); serputc(' '); serputc('\x8'); }
             }
             continue;
           }
           if (c && n == l) continue;
           memwrite(ptr++, c);
           n++;
-          if (c >=0 && (reg[0xe] & 0x100)) Serial.print(echo);
+          if (c >=0 && (reg[0xe] & 0x100)) serputc(c);
         } while (c != 0);
 
         p = 5;
