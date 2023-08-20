@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "1802.h"
 #include "main.h"
 #if MONITOR == 1
@@ -62,6 +63,9 @@ Q - Same as C
 
 */
 
+// one problem: The Blackpill serial port is terrible at dropping characters at high throughput
+// But we can't use the same delay trick here without rewriting every Serial.xxx call
+// So you will occasionally lose characters when flooding data from an M or R command, for example 
 
 static char cmdbuf[33];
 static int cb;
@@ -502,7 +506,6 @@ int monitor(void) {
               if (Serialread() == 0x1b) break;
             }
             adump(i - 16);
-            SERIAL_DELAY;  // in case we are printing a lot, give CDC serial port a chance to catch up
           }
         }
         break;

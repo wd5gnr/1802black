@@ -25,10 +25,8 @@ void serputc(int c);  // put a character out the serial port
 
 extern char threeHex[3][2];
 
-// There is a problem with the CDC code that requires a short
-// delay after sending or you will eventually get random drops 
-// when transmittting a lot of data (10 is too low, 50 rarely but may fail)
-  #define SERIAL_DELAY delayMicroseconds(75);
 
+
+#include "cdcserial.h"
 
 #endif

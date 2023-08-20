@@ -16,7 +16,6 @@ void ihex1802::setmem(uint16_t a, uint8_t d) {
 }
 
 int ihexo1802::putch(int c) {
-  Serial.print((char)c);
-  SERIAL_DELAY;  // give CDC a chance to catch up
+  Serial.write((uint8_t)c);
   return 0;
 }

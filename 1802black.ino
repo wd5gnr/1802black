@@ -9,13 +9,13 @@
 //version date: 20160907
 #include "Arduino.h"
 #include <stdint.h>
+#define DEF_CDCSERIAL
 #include "main.h"
 #include "1802.h"
 
 #define VERSION "1802UNOv2"
 
 #define SERIAL_ESCAPE '|'  // turn terminal input into real terminal input
-
 
 
 uint8_t curkey = 0;
@@ -59,10 +59,12 @@ byte dig[19] = {
 // The problem appears intermittently...  a small delay after sending seems to fix it
 void serputc(int c)
 {
-  Serial.write((char)c);
+//  SERIAL_DELAY;   // try to isolate the write
+//  Serial.write((char)c);
   // yield does not work here
   //delay(1);  // seems to work for delay>=1, attempting to make it only occasionally doesn't seem to work either
-  SERIAL_DELAY;
+//  SERIAL_DELAY;
+Serial.write((char)c);  // we moved delay code to the custom class
 }
 
 
@@ -89,7 +91,7 @@ void setup() {
   // for some reason these MUST be PC13 and PB2 not PC_13/PB_2
   pinMode(PC13, OUTPUT);
   pinMode(PB2, INPUT_PULLUP);
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial)
     ;
   Serial.println(F("Wait"));

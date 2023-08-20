@@ -184,7 +184,7 @@ int bios(uint16_t fn) {
           if (c && n == l) continue;
           memwrite(ptr++, c);
           n++;
-          if (c >=0 && (reg[0xe] & 0x100)) serputc(c);
+          if (c >0 && (reg[0xe] & 0x100)) serputc(c);
         } while (c != 0);
 
         p = 5;

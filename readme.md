@@ -5,6 +5,9 @@ See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for mo
 
 What's New
 ===
+Important note: This version uses a custom USBSerial class to circumvent some issues with high-volume data transfers (or, at least, attempts to).
+Because of that, the Arduino IDE now needs to be set to: "USB Support: CDC (no Generic Serial)"
+
 v2:
 * Updated: Removed platformio! The USB serial port was unreliable in subtle ways when pushing a lot of data. With the Arduino library it seems fine. Rather than troubleshoot it...
 * Moved back to platformio. Should still build with Arduino IDE. Note: when using pio, leaving DFU mode doesn't work. You must turn off the bootloader and reset to run code. Not sure why.
