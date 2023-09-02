@@ -79,6 +79,8 @@ extern int monactive;
 
 #if BIOS == 1
 int bios(uint16_t fn);
+uint8_t io_read_key(uint8_t key);
+void io_write_key(uint8_t key, uint8_t val);
 #endif
 
 #endif

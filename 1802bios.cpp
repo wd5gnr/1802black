@@ -2,6 +2,8 @@
 Note we use FF01 as a made up SCALL and FF02 as SRET
 These should never be transfer control addresses in a real BIOS so...
 
+We also use FF40 and FF41 as a special "read/write" API specific to the emulator
+
 FF3F - Setup SCRT (jump with ret in R6)
 FF2D - Set up baud rate
 FF66 - Print string
@@ -192,7 +194,7 @@ int bios(uint16_t fn) {
 
       break;
     
-      // NOTE MUST REDO THIS ONE... DOES NOT WORK IN ROM!
+   
     case 0xFF12:
       {
 #if 0
@@ -265,6 +267,20 @@ int bios(uint16_t fn) {
       p = 5;
       break;
 
+    case 0xFF40:   // read sim key 
+      uint8_t key;
+      key=memread(reg[6]++);
+      d=io_read_key(memread(key));
+      p=5;
+      break;
+
+    case 0xFF41:   // write sim key
+       uint8_t wkey,wval;
+       wkey=memread(reg[6]++);
+       wval=memread(reg[6]++);
+       io_write_key(wkey,wval);
+       p=5;
+       break;
 
     default:
       return 0;
