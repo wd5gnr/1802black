@@ -270,7 +270,7 @@ int run(void) {
         case 0xa:
         case 0xb:
           q = N & 1;
-          digitalWrite(PC13, !q);
+          digitalWrite(25, q);
           break;
         case 0xc:
           work = d + memread(reg[p]) + df;  // fixed thanks to sjaturner

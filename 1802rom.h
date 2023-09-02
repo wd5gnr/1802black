@@ -31,6 +31,7 @@ uint16_t rombase[] = {
 
 // You can see the pattern here: Define ROM_SLOT and ROM_BASE, include the file, and #undef
 // Then repeat
+#undef ROM_BASE
 
 #define ROM_SLOT 0
 #define ROM_BASE ROM0
