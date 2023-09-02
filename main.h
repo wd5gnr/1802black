@@ -27,6 +27,5 @@ extern char threeHex[3][2];
 
 
 
-#include "cdcserial.h"
 
 #endif

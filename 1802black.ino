@@ -9,7 +9,7 @@
 //version date: 20160907
 #include "Arduino.h"
 #include <stdint.h>
-#define DEF_CDCSERIAL
+
 #include "main.h"
 #include "1802.h"
 
@@ -24,9 +24,16 @@ uint8_t curkey = 0;
 char threeHex[3][2];                     // LED display
 int dp[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };  // decimal points
 
+#if 0
 byte aCols[8] = { PA7, PA0, PA1, PA2, PA3, PA4, PA5, PA6 };  // note col A7 is the extra one linked to DP
 byte aRows[3] = { PB0, PB1, PB3 };  // oope we use PB_2 as sense switch... 
 byte ledSelect[8] = { PB4, PB5, PB6, PB7, PB8, PB9, PB10, PA8 };  // note that A6 and A7 are not used at present. Can delete them.
+#else
+byte aCols[8];
+byte aRows[3];
+byte ledSelect[8];
+
+#endif
 
 byte dig[19] = {
   // bits     6543210
@@ -89,18 +96,19 @@ uint8_t tick = 0;
 // Set up everything
 void setup() {
   // for some reason these MUST be PC13 and PB2 not PC_13/PB_2
-  pinMode(PC13, OUTPUT);
-  pinMode(PB2, INPUT_PULLUP);
+  pinMode(25, OUTPUT);
+  //pinMode(PB2, INPUT_PULLUP);
   Serial.begin(9600);
   while (!Serial)
     ;
   Serial.println(F("Wait"));
   // read switch on PCB
-  int sw = digitalRead(PB_2);
+  int sw ; //= digitalRead(PB_2);
+  sw=0;  // for now
 
   setupUno();
   reset();
-  digitalWrite(PC13, 1);  // Q LED is inverted
+  digitalWrite(25, 0);  // Q LED is NOT inverted
   Serial.println(F(VERSION));
   //  Serial.print(F(VERSION " Free Memory=")); // just a little check, to avoid running out of RAM!
   //  Serial.println(freeRam());
