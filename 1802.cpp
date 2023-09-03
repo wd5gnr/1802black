@@ -87,7 +87,7 @@ int run(void) {
   if (monactive == 0 && mon_checkbp() == 0) return 1;
 #endif
 #if BIOS == 1
-  if ((reg[p] & 0xFF00) == 0xFF00) {
+  if ((reg[p] & 0xFF00) >= 0xF800) {
     int rv;
     rv = bios(reg[p]);
     if (rv) return rv;

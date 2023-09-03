@@ -1,5 +1,7 @@
 {
     "cmake.configureOnOpen": false,
     "arduino.useArduinoCli": true,
-    "arduino.additionalUrls": "https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json
+    "arduino.additionalUrls": "https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json,https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+    "C_Cpp.intelliSenseEngine": "Tag Parser"
+    
 }

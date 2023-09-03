@@ -25,7 +25,6 @@ void serputc(int c);  // put a character out the serial port
 
 extern char threeHex[3][2];
 
-
-
+extern volatile int brkflag;
 
 #endif

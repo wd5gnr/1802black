@@ -3,6 +3,11 @@
 #include "main.h"  // need Serialread
 
 
+
+volatile int brkflag = 0;
+ 
+
+
 uint8_t inp_serial(void)
 {
   int rv=Serialread();
@@ -12,6 +17,12 @@ uint8_t inp_serial(void)
 uint8_t inp_data(void)
 {
   return idata;
+}
+
+uint8_t inp_temp(void)
+{
+  float f = analogReadTemp();
+  return (unsigned int)f;
 }
 
 void out_serial(uint8_t v)
@@ -40,16 +51,39 @@ void out_ctl(uint8_t v)
   addisp=(v&2)==2;  // set bit 1 to use address displays
 }
 
+uint8_t (*inputfn[])(void) =
+    {
+        inp_serial,
+        inp_data,
+        inp_temp
+    };
+
+void (*outputfn[])(uint8_t) =
+    {
+      out_serial,
+      out_data,
+      out_a0,
+      out_a1,
+      out_ctl
+    };
 
 uint8_t io_read_key(uint8_t key)
 {
-  return 0;
+  switch (key)
+  {
+    case 0:
+      return brkflag;
+    case 1:
+      {
+        uint8_t v = brkflag;
+        brkflag = 0;
+        return v;
+      }
+    default:
+      return 0;
+    }
 }
 
-void io_write_key(uint8_t key, uint8_t val)
-{
-  // nothing yet
-}
 
 
 uint8_t (*inputmap[])(void) =
@@ -60,7 +94,7 @@ uint8_t (*inputmap[])(void) =
   inp_data,
   inp_data,
   inp_data,
-  inp_data
+  inp_temp
 };
 
 void (*outputmap[])(uint8_t ) =
@@ -73,6 +107,27 @@ void (*outputmap[])(uint8_t ) =
   out_data,
   out_ctl
 };
+
+void io_write_key(uint8_t key, uint8_t val)
+{
+  unsigned p, idx;
+  switch (key) {
+  case 0:
+    p = val >> 5; // 0-7 were 0 is port 1
+    idx = val & 0x1F; // index
+    inputmap[p] = inputfn[idx];
+
+    break;
+
+case 1:
+    p = val >> 5; // 0-7 were 0 is port 1
+    idx = val & 0x1F; // index
+    outputmap[p] = outputfn[idx];
+    break;
+  }
+
+}
+
 
 // Input from any port gives you the data register
 // except port 1 is serial input

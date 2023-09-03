@@ -18,12 +18,15 @@ f809 - Send char
 #include <Arduino.h>
 #include "main.h"
 #include "1802.h"
-
+#include <class/cdc/cdc_device.h>
 
 #if BIOS == 1
 
-
-
+// handle break
+void tud_cdc_send_break_cb(uint8_t itf, uint16_t ms)
+{
+  brkflag = 1;
+}
 
 int bios(uint16_t fn) {
   switch (fn) {
@@ -75,9 +78,10 @@ int bios(uint16_t fn) {
       break;
 
     case 0xFF6C:  // serial break
-      df = 0;     // for now no break. TODO: You could read a character to a single byte buffer every time and patch read and check to look there first before querying hardware then you could see if ^C was waiting
-      p = 5;
-      break;
+        df = brkflag ? 1 : 0;
+        brkflag = 0;
+        p = 5;
+        break;
 
     case 0xFF66:  // print a string
       {
