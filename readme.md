@@ -5,8 +5,12 @@ See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for mo
 
 What's New
 ===
-Important note: This version uses a custom USBSerial class to circumvent some issues with high-volume data transfers (or, at least, attempts to).
-Because of that, the Arduino IDE now needs to be set to: "USB Support: CDC (no Generic Serial)"
+This is the RP PICO version. Arduino IDE Settings: 
+"flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default"
+
+If you use the regular IDE, you may have to move the .ino, .cpp, and .h files to a new directory. For some reason, platform IO and vscode upset the IDE
+
+NOTE: This is eventually going to be the main branch and the Blackpill version will be more or less frozen
 
 v2:
 * Updated: Removed platformio! The USB serial port was unreliable in subtle ways when pushing a lot of data. With the Arduino library it seems fine. Rather than troubleshoot it...
