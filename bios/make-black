@@ -1,0 +1,1 @@
+srec_cat /home/alw/projects/embedded/1802/bios115/Elf2K.hex -Intel -o /tmp/elf2k.h -CArray

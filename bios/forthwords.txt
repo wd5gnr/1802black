@@ -1,0 +1,53 @@
+
+
+( addr byte byte ... byte count -- ; note bytes are in right order
+example:
+7000 30 00 2 asmcode
+results in 7000=30, 7001=00
+)
+: ASMCODE DUP 1+ PICK SWAP DUP ROT 1- + SWAP 00  DO DUP ROT SWAP C! 1- LOOP DROP  DROP ;
+
+
+( but wait... this only looks up things in the command table right? )
+: LOOKUP80 1- CMDTABLE SWAP DUP IF 00  DO BEGIN DUP C@ 80  AND SWAP 1+ SWAP UNTIL LOOP ELSE DROP 1- THEN BEGIN DUP 1+ SWAP C@ DUP 7F  AND EMIT 80  AND UNTIL DROP CR ;
+
+: storage@ 0x030d @ ;
+: cmdtable 0xac50 ;
+
+
+(not complete)
+: list storage@ dup @ swap 1+ lookup80 
+
+(not working -- need to respect string and number tokens (fe, ff) 
+: xlist storage@ dup @ swap 2+ begin dup c@ 0x7f and dup lookup80 swap 1+ swap dup 8 = if cr then not until ;
+: listbyte dup 0xff = if listnum else dup 0xfe = if liststr else 0x7f and lookup80 then then ;
+
+
+Plan
+
+Get storage head (storage@)
+Get next @
++2
+Get token
+if top and 0 then done
+if 0 set top, goto next and continue
+if string print ASCII until 0
+if num print num (next two bytes)
+otherwise print tokens
+
+What I want to do is put something like this:
+
+XXX0: cold
+XXX3: warm
+XXX6: see from ptr
+
+Then csee will be:
+csee: setup_from cmdline
+      scall see_engine
+      ending stuff
+
+Then the XXX6 vector jumps to see_engine
+
+Could add other vectors like that too
+
+     

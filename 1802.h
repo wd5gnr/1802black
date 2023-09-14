@@ -22,7 +22,7 @@ extern uint8_t ef4term;
 
 extern uint8_t mp;  // memory protect
 // RAM
-extern uint8_t ram[MAXMEM + 1];  // main 1KB RAM		 0x000-0x3FF
+extern uint8_t ram[MAXMEM + 1];  
 
 // You can have 3 banks of ROMs (easy to add more)
 // This bank of ROM must be at lowest address of all ROMs
@@ -80,7 +80,7 @@ extern int monactive;
 #if BIOS == 1
 int bios(uint16_t fn);
 uint8_t io_read_key(uint8_t key);
-void io_write_key(uint8_t key, uint8_t val);
+void io_write_key(uint8_t key, uint16_t val);  // note, val is 8 bit unless key>=0x80
 #endif
 
 #endif

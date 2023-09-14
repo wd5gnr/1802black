@@ -1,0 +1,17 @@
+# print pretty
+
+     { COMMENT="" }
+
+/;/   {
+	 COMMENT=$0
+	 sub(/^[^;]*;/,"",COMMENT);
+         sub(/;.*$/,"");
+	 print "Line:" $0
+         print "Comment: " COMMENT
+     }
+
+
+/[^ \t]:/  {
+             # line with label
+           #  print $1 "\t" $2 "\t; "$COMMENT
+}

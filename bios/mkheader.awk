@@ -1,0 +1,19 @@
+BEGIN {
+    print("// Note: This is an object dump of Bob Armstrong's STG EPROM for the ELF2K")
+    printf("// Generated: ");
+    print(strftime("%Y-%m-%d %H:%M"));
+    print("uint16_t ROM_BASEVAR = ROM_BASE;")
+    print("const uint8_t PROGMEM ROM_ARRAY[] = {")
+    inbrace=0;
+   }
+
+/}/ { print; exit; }
+
+/{/ { inbrace=1;
+    next; }
+
+inbrace==0  { next; }
+
+    {
+    print
+    }

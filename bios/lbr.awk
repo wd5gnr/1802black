@@ -1,0 +1,65 @@
+BEGIN {
+    	   TOPLABEL=0
+	   TOPBRANCH=0
+}
+
+       {
+	   sub(/;.*$/,"");
+	   sub(/:/,"|");
+	   linno=$1
+       }
+
+
+/[A-Za-z_][0-9a-fA-F_]*:/   {
+                 def=$2
+                 sub(/\|/,"",def)
+                 match($0,/([_a-zA-Z][_a-zA-Z0-9]*):/,mlbl)
+
+                 if (def!="0000") {
+		     TOPLABEL=TOPLABEL+1
+		     label[TOPLABEL]=mlbl[1]
+		     lline[TOPLABEL]=linno
+		     ldef[TOPLABEL]=def
+		     ldefnew[TOPLABEL]=def
+		     lindex[mlbl[1]]=TOPLABEL
+                 }
+ }
+
+function getbranch(re,tag) {
+    match($0,/([0-9a-fA-F]+)\|/,loca);
+    loc=loca[1]
+    match($0,re "[ \t]+([^ \t]+)",targ);
+    TOPBRANCH=TOPBRANCH+1
+    branch[TOPBRANCH]=tag;
+    bline[TOPBRANCH]=linno;
+    bdef[TOPBRANCH]=loc
+    bdefnew[TOPBRANCH]=loc
+    btgt[TOPBRANCH]=targ[1]
+    btgtnew[TOPBRANCH]=targ[1]
+		     }
+
+
+
+/[ \t][lL][bB][rR][^a-zA-Z0-9]/  {
+    getbranch("[lL][bB][rR]","lbr")
+                                 }
+
+END {
+#    print "Labels (" TOPLABEL "): "
+#    for (i=1;i<=TOPLABEL;i++) {
+#	print(lline[i] "@" ldef[i] " - " label[i] ": ")
+#    }
+#    print "Branches (" TOPBRANCH "):"
+#    for (i=1;i<=TOPBRANCH;i++) {
+#        print(bline[i] "@" bdef[i] " - " btgt[i])
+#        }
+
+    for (i=1;i<=TOPLABEL;i++) {
+	print "LABEL: " label[i] "@" lline[i] "/" ldef[i]
+      }
+
+    for (i=1;i<=TOPBRANCH;i++) {
+	print "Examine line " bline[i] ": " substr(bdef[i],1,2) "/" substr(ldef[lindex[btgt[i]]],1,2) " dbg:" btgt[i] "," lindex[btg[i]] "," ldef[btgt[i]]
+    }
+    
+}

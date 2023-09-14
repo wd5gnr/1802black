@@ -1,0 +1,584 @@
+RcForth forth-doc.txt
+By Mike Riley
+
+Previous  update : 24 May 2022  Glenn Jolly
+Last update: 9 Aug 2023 Al Williams
+
+What's new
+----------
+Verson 0.3 
+
+Numbers can always be written as 0#10 or 0xFF (decimal 10 and hex FF).
+
+SEE now dumps variables in a way that will recreate them if you read it back in.
+
+SEE always puts 0# or 0x in front of constants so reading a definition in works regardless of mode.
+
+LIST dumps everything from the user dictionary in a way that it can be read back in later.
+
+EXEC does an SCRT call to a machine language subroutime (see examples below)
+
+X. is like . but puts 0x or 0# in front depending on BASE
+
+Code size is reduced! (b2-9b = 23 pages)
+
+If you pass -DNO_BLOAD to the assembler, you get a smaller version with no bload. Bload is still a word
+but it resolves to the same as LOAD and, presumably, you'll XMODEM whatever extended words you want or
+paste them in. No need to consume ROM with the words if you are going to load your own anyway!
+
+
+Note on stack representation:
+-----------------------------
+In the instructions listed below, the state of the stack is shown in
+parentheses.  symbols before the -- represent the stack before the instruction
+is executed, symbols after the -- represent the stack after execution.
+The top of stack is to the right. Example:  (1 2 -- 3) This shows that 2
+is on the top of the stack, and 1 is 2nd from the top, after the instruction
+is executed 3 will be on the stack, the 1 and 2 will be consumed.
+
+Numbers
+-------
+NN - positive number in current BASE
+-NN - negative decimal number (when BASE=10)
+0xNN - unsigned hex number (any BASE; x is not case sensitive)
+0#nn - unsigned decimal number (any BASE)
+
+
+Arithmetic Operators:
+---------------------
++        (a b -- c)       - Add top 2 stack entries
+-        (a b -- c)       - Subtract top 2 stack entries
+*        (a b -- c)       - Multiply top 2 stack entries
+=        (a b -- ?)       - Check equality, 1=equal, 0=unequal
+<>       (a b -- ?)       - Check inequality, 1-unequal, 0=equal
+and      (a b -- c)       - Logically and top 2 stack values
+or       (a b -- c)       - Logically or top 2 stack values
+xor      (a b -- c)       - Logically xor top 2 stack values
+<<       (a n -- b)       - Left shift a by n bits (unsigned)
+>>       (a n -- b)       - Right shift a by n bits (unsigned)
+<        (a b -- ?)       - Return 1 if a < b else 0
+U<       (u1 u2 -- ?)     - Return 1 if u1 < u2 else 0 (unsigned)
+
+Control Operators:
+------------------
+BEGIN    ( -- )           - Beginning of BEGIN-UNTIL loop
+UNTIL    (B -- )          - Ending of BEGIN-UNTIL loop
+WHILE    (B -- )          - Beginning of while-repeat loop
+REPEAT   ( -- )           - End of while-repeat loop
+DO       (T S -- )        - Start of DO LOOP
+I        ( -- c)          - Put current loop count onto stack
+LOOP     ( -- )           - End of DO LOOP
++LOOP    (v -- )          - End of loop with specified increment
+IF       (B -- )          - Beginnig of IF-ELSE-THEN structure
+ELSE     ( -- )           - ELSE portion of IF-ELSE-THEN
+THEN     ( -- )           - End of IF-ELSE-THEN
+>R       (a -- )          - Move top of data stack to return stack
+R>       ( -- a)          - Move top of return stack to data stack
+R@       ( -- a)          - Copy top of return stack to data stack
+
+
+Variables:
+----------
+VARIABLE name                   - Create a variable (not allowed in functions)
+@        (a -- v)               - Retrieve value from address
+SP@      (a -- )                - Get address of tos pointer
+!        (v a -- )              - Store value at address
+C@       (a -- v)               - Retrieve byte value from address
+C!       (v a -- )              - Store byte value at address
+ALLOT    (n -- )                - Increase the last defined vars storage space
+CMOVE    (caddr1 caddr2 u -- )  - Move u bytes from caddr1 to caddr2
+
+
+Function definition:
+--------------------
+: name                    - Create a function
+;                         - End of function
+
+Stack Operators:
+----------------
+DUP      (a -- a a)       - Duplicate top stack value
+DROP     (a -- )          - Drop top stack value
+SWAP     (a b -- b a)     - Swap top 2 stack entries
+OVER     (a b -- a b a)   - Copy 2nd stack value to top
+ROT      (a b c -- b c a) - Rotate 3rd stack item to top
+-ROT     (a b c -- c a b) - Rotate top of stack to 3rd position
+DEPTH    ( -- a)          - Get number of items on stack
+.        (a -- )          - print top of stack as signed integer
+U.       (a -- )          - print top of stack as unsigned integer
+X.	 (a -- )          - print top of stack as unsigned integer with 0x or 0# prefix 
+EMIT     (a -- )          - print top of stack as ascii character
+EMITP    (a -- )          - print top of stack as printable character
+
+
+Others:
+-------
+CR       ( -- )           - Print a CR/LF pair
+MEM      ( -- a)          - return amount of memory
+WORDS    ( -- )           - Display vocabulary words
+SEE name                  - See what is bound to a name
+LIST     ( -- )           - See all dictionary words/variables
+FORGET name               - Remove a variable or function
+." text "                 - Print specified text on the terminal
+KEY      ( -- v)          - Read a char from the keyboard and place on stack
+KEY?     ( -- ?)          - Non blocking keyboard read returns 1 if pressed else 0
+SETQ     (n -- )          - Set Q line hi/lo for n 1/0 
+BASE     ( -- addr)       - Address containing the current numeric radix
+DECIMAL  ( -- )           - Set the numeric radix to 10 
+HEX      ( -- )           - Set the numeric radix to 16 
+DELAY    (n --)           - Blocking delay of n milliseconds
+SAVE     ( -- )           - Save dictionary to terminal via Xmodem
+LOAD     ( -- )           - Load dictionary to terminal via Xmodem
+BLOAD    ( -- )           - Load extensions as binary block included in src code (note: resets to decimal before loading and leaves you in decimal mode)
+GOTOXY   (x y -- )        - Position the cursor at x,y
+RAND     ( -- b)          - Returns random byte
+EXEC     ( a -- r )       - Do an SCRT call to machine language at address a; Value of RB on return pushed on stack
+OUT      ( b p -- )       - Output byte b to port p (e.g., 4 0xaa out)
+INP      ( p -- b )       - Input byte b from port p
+EF       ( -- v )         - Read value of EF pins
+SETQ     ( x -- )         - Set q to value x
+BYE      ( -- )           - Exit
+
+
+Extended Functions:
+-------------------
+The extended functions are implemented as pre-loaded Forth programs.  As such they
+can be viewed with the SEE command and removed with the FORGET command.
+
+
+NIP      (b a -- a)                 - Drop 2nd item from stack
+TUCK     (b a -- a b a)             - Place copy of TOS before 2nd on stack
+PICK     (an..a0 k -- an..a0 ak)    - Copy k-th stack element to stack
+2DUP     (b a -- b a b a)           - Duplicate top 2 stack values
+2DROP    (a b -- )                  - Drop top 2 stack values
+2OVER    (a b c d -- a b c d a b)   - Duplicate bottom pair a b to stack
+2SWAP    (a b c d -- c d a b)       - Exchange the top two cell pairs
+TRUE     ( -- 1)                    - Place true value on stack
+FALSE    ( -- 0)                    - Place false value on stack
+J        (R:loop ndx -- loop ndx)   - Copy of loop index from return stack
+1+       (v -- v)                   - Add 1 to the top of stack
+1-       (v -- v)                   - Subtract 1 from the top of stack
+2+       (v -- v)                   - Add 2 to the top of stack
+2-       (v -- v)                   - Subtract 2 from the top of stack
+0=       (v -- v)                   - Returns 1 if TOS is zero, otherwise 0
+NOT      (v -- v)                   - Return 0 if TOS <> 0, otherwise 1
+U>       (u1 u2 -- ?)               - flag true if u1 is greater than u2
+U>=      (u1 u2 -- ?)               - flag true if u1 is greater than or equal to u2
+U<=      (u1 u2 -- ?)               - flag true if u1 is less than or equal to u2 
+>        (a b -- v)                 - Return 1 if a > b else 0
+<=       (a b -- v)                 - Return 1 if a <= b else 0
+>=       (a b -- v)                 - Return 1 if a >= b else 0
+0>       (v -- v)                   - Return 1 if TOS > 0 else 0
+0<       (v -- v)                   - Return 1 if TOS < 0 else 0
+FREE     ( -- )                     - Display free memory
++!       (v a -- )                  - Add value to specified variable address
+-!       (v a -- )                  - Subtract value from specified variable address
+*!       (v a -- )                  - Multiply specified variable address by value
+/!       (v a -- )                  - Divide specified variable address by value
+C+!      (n caddr -- n+)            - Adds n to value stored at caddr
+C-!      (n caddr -- n-)            - Subtracts n from value stored at caddr 
+@+       (a -- a v)                 - Like @ except preserve address incremented by 2
+?        (a -- )                    - Display value at address
+NEG      (v -- v)                   - Negate a number
+MIN      (a b -- v)                 - Return smallest of 2 signed numbers
+MAX      (a b -- v)                 - Return largest of 2 signed numbers
+UMIN     (u1 u2 -- v)               - Return smallest of 2 unsigned numbers
+UMAX     (u1 u2 -- v)               - Return largest of 2 unsigned numbers
+?DUP     (a -- a | a a)             - Duplicate TOS if nonzero
+ABS      (v -- v)                   - Return absolute value of a number
+BL       ( -- 32)                   - Place a blank on the stack
+SPACE    ( -- )                     - Display a single space
+SPACES   (v -- )                    - Display specified number of spaces
+CLS      ( -- )                     - Clear screen
+LSHIFT   (v c -- )                  - Left shift value v by c bits (signed)
+RSHIFT   (v c -- )                  - Right shift value v by c bits (signed)
+INVERT   (a -- v)                   - Invert the bits of TOS
+SGN      (v -- v)                   - Return sign of number
+MOD      (a b -- v)                 - Get remainder of a/b
+/MOD     (a b -- r q)               - Perform both mod and functions
+GETBIT   (u n -- ?)                 - Get state of nth bit (0..15) of u as flag
+SETBIT   (u n -- u)                 - Set nth bit of u
+CLRBIT   (u n -- u)                 - Clear nth bit of u
+TGLBIT   (u n -- u)                 - Toggle nth bit of u
+BYTESWAP (b1b2 -- b2b1)             - Endian conversion for 16 bit int
+FILL     (addr n ch -- )            - Fill n bytes with ch starting at addr
+ERASE    (addr n -- )               - Zero n bytes of memory starting at addr
+CLEAR    ( -- )                     - Clears the stack of all entries
+.S       ( -- )                     - Display entire contents of stack
+TYPE     (addr n -- )               - Display n bytes at addr
+DUMP     (addr n -- )               - Display n bytes at addr as 16 byte records
+
+Notes:
+------
+BLOAD resets the system to decimal before loading.
+
+DUMP really prefers hex mode for formatting
+
+If you are in hex mode, a, b, c, d, e, and f are not words. So "VARIABLE A" will fail in hex mode. So will abc, for example.
+
+Nothing is executed after VARIABLE xxx. That means:
+VARIABLE foo 100 allot
+Does NOT do what you think it does. End the line after the foo.
+
+SEE emits all integers as unsigned with 0x or 0# prefixes to faciliate reloading correctly
+This means that -1 test ! see test will show 0#65535 not -1 but those are the same thing.
+
+Forth Tutorial:
+---------------
+Forth is primarily a stack based language.  Arguments for functions are first
+pushed onto the stack and then the instruction is executed.  Pushing a number
+onto the stack is done merely by mentioning the number:
+   
+    ok 5
+
+This instruction will leave 5 on the top of the stack.  the '.' command will
+take the top of the stack and display it in signed integer notation:
+
+    ok .
+    5 ok
+
+The '.' took the 5 we pushed earlier, removed it from the stack and printed it.
+If we execute the command again:
+
+    ok .
+    stack empty
+    ok
+
+the interpreter will complain about an empty stack and abort any further
+processing.
+
+Commands can be placed multiply on a line, with just spaces separating each
+command:
+
+    ok 5 4 . .
+    4 5 ok
+
+In this example, 4 was the last value pushed onto the stack, therefore the
+first value popped off by the first '.' command.
+
+To keep the prompt off the line with the answers, you can use the CR command:
+
+    ok 5 4 . . CR
+    4 5
+    ok
+
+Note also that commands are executed left to right, there is no order of
+operations other than left to right
+
+It is also possible to display text using the ." operator:
+
+    ok ." HELLO WORLD!!!" CR
+    HELLO WORLD!!!
+    ok
+
+Arithmetic can be performed as well. try this example:
+
+    ok 5 4 + . CR
+    9
+    ok
+
+Again, notice all the arguments are pushed onto the stack before the
+command is executed.
+
+Equality is tested with the = operator:
+
+    ok 5 4 = . CR
+    0
+    ok 5 5 = . CR
+    1
+
+Note that when two numbers are equal, a 1 is left on the stack, whereas 0
+is left when they are not equal.
+
+The DEPTH command will place onto the top of the stack the number of items in
+the stack:
+    ok 4 5 6 DEPTH . CR
+    3
+    ok
+
+Note that the depth command does not include its own answer in the total.
+
+The top two stack values can be swapped using the SWAP command:
+    ok 2 3 . . CR
+    3 2
+    ok 2 3 SWAP . . CR
+    2 3
+    ok
+
+The top of the stack can be duplicated using the DUP command:
+    ok 2 . . CR
+    2 stack empty
+    ok 3 DUP . . CR
+    3 3
+    ok
+
+The IF command can be used for conditional exection.  IF examines the top of
+the stack to determine what to execute:
+
+    ok 1 IF 1 . THEN 2 . CR
+    1 2
+    ok 0 IF 1 . THEN 2 . CR
+    2
+    ok
+
+When IF finds 0 on the stack, execution begins after the matching THEN.  It
+is also possible to have an ELSE.  Try these:
+
+    ok 1 IF 1 . ELSE 2 . THEN 3 . CR
+    1 3
+    ok 0 IF 1 . ELSE 2 . THEN 3 . CR
+    2 3
+
+If an ELSE is found before the next THEN on a failed IF test, the ELSE code
+block will be executed
+
+There are 3 looping constructs in FORTH.  The first is the DO LOOP.  this is
+a controlled loop with a specific start and a specific end.  The I command can
+be used inside of a loop to retrieve the loop counter:
+
+    ok 10 0 DO I . LOOP CR
+    0 1 2 3 4 5 6 7 8 9
+    ok
+
+Notice that the loop terminates once the end condition is reached.  The test
+occurs at the LOOP command, therefore the loop is not executed again when I
+reaches 10.  Notice also that a loop is always executed at least once:
+
+    ok 10 15 DO I . LOOP CR
+    15
+    ok
+
+To increment the loop counter by something other than 1, use the +LOOP command:
+    ok 10 0 DO I . 2 +LOOP CR
+    0 2 4 6 8
+    ok 10 0 DO I . 3 +LOOP CR
+    0 3 6 9
+
+The next two loop types are uncontrolled, they loops are executed so long as
+the top of stack is non-zero at the time of test.  The BEGIN UNTIL loop
+has its test at the end, and therefore just like DO loops, the loop will
+always be executed at least once:
+    ok 5 BEGIN DUP . 1 - DUP UNTIL CR
+    5 4 3 2 1
+    ok
+
+Notice we used the DUP command here first to make a duplicate of our counter
+for the . command, and then a second DUP before the UNTIL.  UNTIL takes the
+top of the stack in order to determine if another loop is needed.
+
+The second uncontrolled loop is the WHILE REPEAT loop.  This loop has its
+test at the beginning, therefore if WHILE finds a 0 on the stack the loop
+will not even execute the first time:
+
+    ok 5 DUP WHILE DUP . 1 - DUP REPEAT CR
+    5 4 3 2 1 
+    ok 0 DUP WHILE DUP . 1 - DUP REPEAT CR
+    ok
+
+Variables can be created with the VARIABLE command.  Note, variables should not
+be given the same names as built in commands.  Here are some example variables:
+
+    ok VARIABLE A
+    ok VARIABLE B
+
+If you execute a WORDS command, you will see that your new variable names now
+appear in the list.
+
+To store a value in a variable we use the ! command.  First we push the value
+we want to store on the stack, and then mention the variable:
+
+    ok 5 A !
+    ok 10 B !
+
+This then stores 5 into A and 10 into B.  To retrieve the values of variables,
+use the @ command:
+    ok A @ . CR
+    5
+    ok B @ . CR
+    10
+    ok A @ B @ + . CR
+    15
+
+To immediately print the value in a variale, you can use the SEE command:
+    ok SEE A
+    5
+    ok
+
+Note that the SEE command provides its own CR/LF.
+    ok SEE A SEE B
+    5
+    10
+    ok
+
+The real power of forth is that it allows you to define your own commands!
+Commands are defined using the : command and terminated with the ; command.
+Note. that Rc/Forth requires the entire command to be created in one input
+cycle.  try this one:
+
+    ok : STARS 0 DO 42 EMIT LOOP ;
+    ok
+
+If you look at the WORDS now, you will see another new name: STARS.  You can
+also use the SEE command on functions to see their definitions:
+    ok SEE STARS
+    : STARS 0 DO 42 EMIT LOOP ;
+
+This command can now be used just like any other forth command:
+
+    ok 5 STARS CR
+    *****
+    ok
+
+Custom functions can even be used inside other custom functions:
+
+    ok : PYRAMID 1 DO I STARS CR LOOP ;
+    ok
+
+now run it:
+
+    ok 5 PYRAMID
+    *
+    **
+    ***
+    ****
+
+
+You can create and call machine language routines, but you have to be careful not to corrupt things.
+When in doubt, save things to the stack and return them to how you found them before exiting.
+You will be called using the normal subroutine call with a stack already in place.
+
+The easiest way to do it is create a variable with enough space to hold your code and then load it.
+
+For example, to create 16 bytes to hold code:
+
+hex
+variable pgm
+10 allot
+
+You can define some helper words:
+: code! ( a byte -- a+1 ) swap dup rot swap c! !+ ;
+
+This leaves the address for the next call so it is clean to define a word to stop the sequence:
+: endcode ( a -- ) drop ;
+
+Let's write AA to the LEDs using the following code:
+
+SEX R3  ; make X=P
+OUT 4   ; write M(X) RX+1 (that is write the next byte)
+DB AA   ; the byte to write
+SEX R2  ; back to X=2
+D5      ; SCRT return (SEP R5)
+
+In hex, this is E3 64 AA E2 D5, which is 5 bytes. We can fit it in our pgm variable or define a variable with enough space.
+
+Issue the following (be sure you are in hex mode):
+
+pgm e3 code! 64 code! aa code! e2 code! d5 code! endcode
+
+If you want to verify:
+pgm 10 dump
+
+Now, we can call our code and drop the return value since we don't care about it. Fun fact. If your code doesn't touch the return code it is the call
+address. So you can make multiple calls without reloading the address as long as your codes doesn't touch the return value register (RB).
+
+pgm exec drop
+
+You could make that into a word, of course:
+: mlpgm pgm exec drop ;
+
+You can call many BIOS calls
+variable bioskey
+10 allot
+bioskey f8 code! 0 code! bb code! d4 code! ff code!
+6 code! ab code! d5! endcode
+
+This corresponds to:
+LDI 0 ; zero out top byte of return register
+PHI RB
+CALL bios_key  ; read key (BIOS ff06)
+PLO RB         ; put key in RB.0
+RETURN
+
+In this case we want the return code:
+bioskey exec .
+
+You can define a word to drop the return code for the cases that you don't care:
+: exec_ exec drop ;
+
+Another handy word for defining machine code words:
+
+: ASMCODE DUP 1+ PICK SWAP DUP ROT 1- + SWAP 00  DO DUP ROT SWAP C! 1- LOOP DROP  DROP ;
+
+Use it like this:
+
+7000 7A 7B 30 00 4 asmcode
+
+Here 7000 is the address, and there are 4 op codes. The top of the stack is the number of opcodes/bytes. Note it works backwards so
+it reads "normal." That is: 7000: 7A 7B 30 00. Normally, you would not hard code an address, but would use a variable as above.
+
+
+
+This completes this introductory tutorial on Forth.  Experiment with the
+commands and you will find it is really easy to pick it up!
+
+: NIP SWAP DROP ;
+: TUCK SWAP OVER ;
+: PICK 2 * 2 + SP@ + @ ;
+: 2DUP OVER OVER ;
+: 2DROP DROP DROP ;
+: 2OVER 3 PICK 3 PICK ;
+: 2SWAP >R -ROT R> -ROT ; 
+: TRUE 1 ;
+: FALSE 0 ;
+: J R@ ;
+: 1+ 1 + ; 
+: 1- 1 - ;
+: 2+ 2 + ;
+: 2- 2 - ;
+: 0= 0 = ;
+: NOT 0= ;
+: U> SWAP U< ;
+: U>= 2DUP U> >R = R> OR ;
+: U<= U>= NOT ;
+: > SWAP < ;
+: <=  > NOT ;
+: >=  < NOT ;
+: 0> 0 > ;
+: 0< 0 < ;
+: FREE MEM U. CR ;
+: +! SWAP OVER @ + SWAP ! ;
+: -! SWAP OVER @ SWAP - SWAP ! ;
+: *! SWAP OVER @ * SWAP ! ;
+: /! SWAP OVER @ SWAP / SWAP ! ;
+: C+! DUP >R C@ + R> C! ;
+: C-! DUP >R C@ SWAP - R> C! ;
+: @+ DUP @ SWAP 2 + SWAP ;
+: ? @ U. ;
+: NEG 0 SWAP - ;
+: MIN 2DUP > IF SWAP THEN DROP ;
+: MAX 2DUP < IF SWAP THEN DROP ;
+: UMIN 2DUP U> IF SWAP THEN DROP ;
+: UMAX 2DUP U< IF SWAP THEN DROP ;
+: ?DUP DUP IF DUP THEN ;
+: ABS DUP 0< IF 0 SWAP - THEN ;
+: BL 32 ;
+: SPACE 32 EMIT ;
+: SPACES 0 DO 32 EMIT LOOP ;
+: CLS 27 EMIT 91 EMIT 50 EMIT 74 EMIT 27 EMIT 91 EMIT 72 EMIT ;
+: LSHIFT DUP WHILE SWAP 2 * SWAP 1 - DUP REPEAT DROP ;
+: RSHIFT DUP WHILE SWAP 2 / SWAP 1 - DUP REPEAT DROP ;
+: INVERT -1 XOR ;
+: SGN DUP IF -32768 AND IF -1 ELSE 1 THEN THEN ;
+: MOD DUP ROT DUP ROT / ROT * - ;
+: /MOD OVER OVER MOD -ROT / ;
+: GETBIT >> 1 AND ;
+: SETBIT 1 SWAP << OR ;
+: CLRBIT 1 SWAP << -1 XOR AND ;
+: TGLBIT 1 SWAP << XOR ;
+: BYTESWAP DUP 8 >> SWAP 255 AND 8 << OR ;
+: FILL SWAP >R OVER C! DUP 1+ R> 1- CMOVE ;
+: ERASE 0 FILL ;
+: CLEAR DEPTH WHILE DROP DEPTH REPEAT ;
+: .S ." < " DEPTH 8 EMIT . 8 EMIT ." > " DEPTH ?DUP IF DUP 0 DO DUP I - PICK . LOOP DROP THEN ;
+: TYPE DUP IF 0 DO DUP C@ EMITP 1 + LOOP ELSE DROP THEN DROP ;
+: DUMP CR 5 SPACES 16 0 DO I . LOOP 0 DO CR DUP . 16 0 DO DUP C@ . 1+ LOOP DUP 16 - 16 TYPE 16 +LOOP DROP CR ;
+

@@ -1,0 +1,197 @@
+#++
+# Makefile - Makefile for the Spare Time Gizmos' Elf 2000 EPROM
+#
+# Copyright (C) 2020 by Spare Time Gizmos.  All rights reserved.
+#
+# This firmware is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#DESCRIPTION:
+#   This Makefile will build the Spare Time Gizmos Elf EPROM image for the
+# Spare Time Gizmos Elf 2000.  The result is a file called Elf2K.hex, which is
+# ready to burn into a 27C256 EPROM...
+#
+#TARGETS:
+#  make all	- rebuild PicoElf.hex
+#  make clean	- clean up all generated files _except_ PicoElf.hex
+#  make distro	- make the PicoElf.zip source file distribution
+#
+# REVISION HISTORY:
+# dd-mmm-yy	who     description
+# 22-Feb-06	RLA	New file.
+# 12-Jun-08	RLA	Update for the latest GNU make.
+#  2-Dec-20	RLA	Add support for Visual/02 and XMODEM.
+# 16-Dec-20     RLA     Change output to PicoElf.hex and clean things up
+# 19-Dec-20     RLA     Create Elf2K version from PicoElf
+#  3-Jan-21	RLA	Make the help file platform dependent
+#--
+
+# Set PLATFORM to either "Elf2K" or "PicoElf" for the desired target...
+PLATFORM=Elf2K
+-include config.$(PLATFORM)
+
+#   This "subroutine" (don't know what else to call it!) converts its argument
+# to upper case.  You'd think there would be a built in function for this, but
+# no, at least not in GNU Make.  It's a bit brute force, but it works!
+UC = $(subst a,A,$(subst b,B,$(subst c,C,$(subst d,D,$(subst e,E,$(subst f,F,$(subst g,G,$(subst h,H,$(subst i,I,$(subst j,J,$(subst k,K,$(subst l,L,$(subst m,M,$(subst n,N,$(subst o,O,$(subst p,P,$(subst q,Q,$(subst r,R,$(subst s,S,$(subst t,T,$(subst u,U,$(subst v,V,$(subst w,W,$(subst x,X,$(subst y,Y,$(subst z,Z,$1))))))))))))))))))))))))))
+
+# Tool paths and options - you can change these as necessary...
+TASM=/home/alw//projects/embedded/1802/tasm/tasm
+export TASMTABS=z:\\home\\alw\\projects\\embedded\\1802\\tasm
+TASMOPTS=-t1802 -la -g0 -i -DTASM -D$(call UC,$(PLATFORM)) -DSTGROM -DBLACK1802
+RCASM=/home/alw/projects/embedded/1802/rcasm/rcasm
+ASM02=/home/alw/projects/embedded/1802/Asm-02/asm02
+export RCASM_DIR=/home/alw/projects/embedded/1802/rcasm/
+RCASMOPTS=-v -h -l -x -d1802 -D$(call UC,$(PLATFORM)) -DSTGROM
+ASM02OPTS=-L -i -D$(call UC,$(PLATFORM)) -DSTGROM
+ROMMERGE=/home/alw/projects/embedded/1802/elf2k/release/tools/rommerge
+ROMCKSUM=/home/alw/projects/embedded/1802/elf2k/release/tools/romcksum
+ROMTEXT=/home/alw/projects/embedded/1802/elf2k/release/tools/romtext
+CPP=cpp
+ZIP=zip
+RM=rm
+
+#   Now make a list of all the .HEX files that will be required to build the
+# EPROM image.  Some are obvious, like boots.hex or bios.hex, but others
+# depend on the configuration options selected...
+HEXFILES = $(strip							\
+	     boots.hex bios.hex $(if $(VIDEO), video.hex)		\
+	     $(if $(SEDIT), sedit.hex) $(if $(FORTH), forth.hex)	\
+	     $(if $(EDTASM), edtasm.hex) $(if $(BASIC), rcbasic.hex)	\
+	     $(if $(VISUAL), visual02.hex) $(if $(XMODEM), xmodem.hex)	\
+	     $(if $(HELP), help.hex)					\
+	   )
+LISTFILES = $(HEXFILES:.hex=.lst)
+
+
+# The default target builds everything...
+all:	$(PLATFORM).hex $(PLATFORM).bin $(PLATFORM).hdata
+
+%.hdata : %.hex
+	srec_cat $< -Intel -o $@ -C-Array
+	awk -f mkheader.awk $@ >../elf2k.h
+
+%.bin : %.hex
+	srec_cat $< -Intel -o $@ -Binary
+
+
+test:
+	-grep "Branch off" *.lst
+	srec_cat $(PLATFORM).hex -Intel -o $(PLATFORM).bin -Binary
+
+boots.hex:	boots.asm config.inc hardware.inc boots.inc bios.inc
+	@echo Building Elf 2000 Monitor ...
+	$(TASM) $(TASMOPTS) $< $@
+
+video.hex:	video.asm config.inc hardware.inc boots.inc
+	@echo Building VT1802 support firmware ...
+	$(TASM) $(TASMOPTS) $< $@
+
+bios.hex:	bios.asm config.inc bios.inc
+	@echo Building BIOS ...
+	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+
+xmodem.hex:	xmodem.asm config.inc bios.inc
+	@echo Building XMODEM ...
+	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+
+rcbasic.hex:	rcbasic.asm config.inc bios.inc
+	@echo Building rc/BASIC ...
+#	$(RCASM) $(RCASMOPTS) -DLEVEL=2 $< >$(@:.hex=.lst)
+	$(RM) -f temp.asm $@
+	$(CPP) -DSTGROM -DLEVEL=2 -Id:\\elf\\sw\\rcbasic\\ $< >temp.asm
+	$(RCASM) $(RCASMOPTS) temp.asm >$(@:.hex=.lst)
+	mv temp.hex $@
+
+visual02.hex:	visual02.asm config.inc bios.inc
+	@echo Building VISUAL/02 ...
+	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+
+edtasm.hex:	edtasm.asm config.inc bios.inc
+	@echo Building Editor/Assembler ...
+	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+
+forth.hex:	forth.asm config.inc bios.inc extended.inc stgrombload.inc wordsram0.inc custom.inc extcore.inc forthconfig.inc
+	@echo Building rc/Forth ...
+# lite version (BLOAD turns into LOAD)
+#	$(RCASM) $(RCASMOPTS) -DNO_BLOAD $< >$(@:.hex=.lst)
+# full version
+#	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+	$(ASM02) $(ASM02OPTS) $<
+
+sedit.hex:	sedit.asm config.inc bios.inc
+	@echo Building Disk Sector Editor ...
+	$(RCASM) $(RCASMOPTS) $< >$(@:.hex=.lst)
+
+help.hex:	help.$(PLATFORM) config.inc
+	@echo Compiling help text ...
+	$(ROMTEXT) -a0x$(strip $(HELP:H=)) $< $@
+
+merged.hex:	$(HEXFILES)
+	@echo Merging files into EPROM image ...
+	$(ROMMERGE) -s32k -o32768 merged.hex $(HEXFILES)
+
+$(PLATFORM).hex:	merged.hex
+	@echo Calculating EPROM checksum ...
+	$(ROMCKSUM) merged.hex -s32K -o32768 -c32764 $(PLATFORM).hex
+
+# The "clean" target does what you'd expect...
+clean:
+	$(RM) -f $(HEXFILES)
+	$(RM) -f $(LISTFILES)
+	$(RM) -f video.hex merged.hex config.inc temp.asm
+	$(RM) -f *.*\~ \#*.*\#
+
+#   The file config.inc is included by all the source files (including Mike's)
+# and defines the EPROM addresses of the various components.  This target will
+# actually create a new config.inc file from the definitions in config.
+config.inc:	config.$(PLATFORM)
+	@echo Creating config.inc from config.$(PLATFORM) ...
+	@$(RM) -f config.inc
+	@echo "; DO NOT EDIT THIS FILE - EDIT CONFIG. INSTEAD!!" >>config.inc
+	@echo "#define BOOTS	 $(strip $(BOOTS))"   >>config.inc
+	@echo "#define WARMB	 $(strip $(WARMB))"   >>config.inc
+	$(if $(HELP),  @echo "#define HELP	 $(strip $(HELP))"   >>config.inc)
+	@echo "#define RAMPAGE	 $(strip $(RAMPAGE))" >>config.inc
+	@echo "#define BIOS	 $(strip $(BIOS))"    >>config.inc
+	$(if $(EBIOS),  @echo "#define EBIOS	 $(strip $(EBIOS))"   >>config.inc)
+ifneq ($(VIDEO),)
+	@echo "#define VIDEO	 $(strip $(VIDEO))"   >>config.inc
+	@echo "#define INIT75	 $(strip $(INIT75))"  >>config.inc
+	@echo "#define VTPUTC	 $(strip $(VTPUTC))"  >>config.inc
+	@echo "#define SCREEN	 $(strip $(SCREEN))"  >>config.inc
+endif
+	$(if $(PIXIE),  @echo "#define PIXIE	                  "   >>config.inc)
+	$(if $(SEDIT),  @echo "#define SEDIT	 $(strip $(SEDIT))"   >>config.inc)
+	$(if $(FORTH),  @echo "#define FORTH	 $(strip $(FORTH))"   >>config.inc)
+	$(if $(EDTASM), @echo "#define EDTASM	 $(strip $(EDTASM))"  >>config.inc)
+	$(if $(BASIC),  @echo "#define BASIC	 $(strip $(BASIC))"   >>config.inc)
+	$(if $(VISUAL), @echo "#define VISUAL	 $(strip $(VISUAL))"  >>config.inc)
+	$(if $(XMODEM), @echo "#define XMODEM	 $(strip $(XMODEM))"  >>config.inc)
+
+#   The "distro" target builds a Elf2K.zip file which contains all the tools,
+# source files, readme files, license files, etc that are usually included in
+# the source distribution.  (A binary distribution, of course, only contains
+# the Elf2K.hex file!)  Note that a source distribution only contains Spare
+# Time Gizmos' files - source files for other things, notably Mike Riley's
+# software, rcasm and TASM, and the tools used to build the EPROM image, are
+# not included!
+distro:
+	@echo Building source distribution ...
+	$(RM) -f STGROM.zip
+	$(ZIP) a STGROM.zip \
+	  boots.asm video.asm boots.inc hardware.inc \
+	  help.PicoElf help.Elf2K config.PicoElf config.Elf2K	\
+	  Makefile. readme.txt license.txt Elf2K.hex PicoElf.hex \
+	  $(ROMMERGE) $(ROMCKSUM) $(ROMTEXT)

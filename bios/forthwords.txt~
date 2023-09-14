@@ -1,0 +1,8 @@
+: LOOKUP80 1- CMDTABLE SWAP DUP IF 00  DO BEGIN DUP C@ 80  AND SWAP 1+ SWAP UNTIL LOOP ELSE DROP 1- THEN BEGIN DUP 1+ SWAP C@ DUP 7F  AND EMIT 80  AND UNTIL DROP CR ;
+
+: storage@ 0x030d @ ;
+: cmdtable 0xac50 ;
+
+( next current+1
+
+: list storage@ dup @ swap 1+ lookup80 

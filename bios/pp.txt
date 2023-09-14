@@ -1,0 +1,10 @@
+#include something
+#define FOO    ;a  foo
+
+foo:  plo r5   ; comment
+      glo r6
+      mov ra, rb
+      mov ra,rb
+; this is a line with just a comment
+       ; a comment line indented
+      

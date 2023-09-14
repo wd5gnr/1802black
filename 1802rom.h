@@ -9,17 +9,14 @@
 
 // The STG is a 32K ROM so only one but it would be possible to "bank switch" multiple ROMs.
 
-
 // Define ROM Base addresses
 #define ROM0 0x8000
-//#define ROM1 0x9000
-//#define ROM2 0xC000
+// #define ROM1 0x8000
+// #define ROM2 0xC000
 
 uint16_t rombase[] = {
-  ROM0  //, ROM1, ROM2
+    ROM0 // ROM1 //, ROM2
 };
-
-
 
 // Macros for ROMs to use
 #define ROM_ARRAY ROM_ARRAY_(rom, ROM_SLOT)
@@ -32,16 +29,16 @@ uint16_t rombase[] = {
 // You can see the pattern here: Define ROM_SLOT and ROM_BASE, include the file, and #undef
 // Then repeat
 #undef ROM_BASE
-
 #define ROM_SLOT 0
 #define ROM_BASE ROM0
 #include "elf2k.h"
 #undef ROM_SLOT
 #undef ROM_BASE
 /* Examples of adding more ROMs
+
 #define ROM_SLOT 1
 #define ROM_BASE ROM1
-#include "1802etops.h"
+#include "rom1.h"
 #undef ROM_SLOT
 #undef ROM_BASE
 #define ROM_SLOT 2
@@ -49,22 +46,36 @@ uint16_t rombase[] = {
 #include "1802hilo.h"
 */
 
+/* Allow alt rom for ROM0 */
+#include "romalt.h"
+
 // Array of ROMS
 uint8_t const *roms[] = {
-  rom0  //, rom1, rom2
+    rom0 //, rom1, rom2
 };
-
 
 // Compute size of ROMs
 uint16_t romsize[] = {
-  sizeof(rom0) / sizeof(rom0[0])
-//sizeof(rom1)/sizeof(rom1[0]),
-//sizeof(rom2)/sizeof(rom2[0])
+    sizeof(rom0) / sizeof(rom0[0])
+    // sizeof(rom1)/sizeof(rom1[0]),
+    // sizeof(rom2)/sizeof(rom2[0])
 };
 
+void initRom(int alt)
+{
+  if (alt == 1)
+  {
+    roms[0] = romalt;
+    romsize[0] = sizeof(romalt)/ sizeof(romalt[0]);
+  }
+  else
+  {
+    roms[0] = rom0;
+    romsize[0] = sizeof(rom0) / sizeof(rom0[0]);
+  }
+}
 
 // Assume everything starting at rombase[0] is a ROM
 #define ISROM(a) ((a) >= rombase[0])
-
 
 #endif
