@@ -189,6 +189,7 @@ int diskcfm(void)
   return (n == 'y' || n == 'Y');
 }
 
+// Super crummy disk monitor to troubleshoot/format/set disk stuff
 void diskmon(void)
 {
   char diskcmd[128];
@@ -198,22 +199,28 @@ void diskmon(void)
   diskinit = 1;
   while (1)
   {
-    Serial.println("0 - Exit\r\n1 - read SEC CT (hex)\r\n2 - format\r\n3 - Dir /\r\n4 - Set Max cylinder CT (hex)");
+    Serial.println(F("Host disk menu (arguments in hex)"));
+   Serial.println(F("S - set max 'track' count: S [max#]\r\n"
+      "D - Directory\r\n"
+      "F - Format (will ask for confirmation)\r\n"
+      "R - read sectors from 1st 'track': R [sector] [count]\r\n"
+      "X - eXit"));
     int n = readline(NULL);
+    n=toupper(n);
     switch (n)
     {
-      case '0':
+      case 'X':
         diskinit = false;
         LittleFS.end();
         diskinit = 0;
         return;
-      case '1':
+      case 'R':
       {
         int n1, n2;
         n1 = readhexbuf(NULL, 0);
         n1 *= 512;
         n2 = readhexbuf(NULL, 1);
-        File f = LittleFS.open("/ide0.dsk", "r");
+        File f = LittleFS.open("/ide00A.dsk", "r");
         if (!f)
         {
           Serial.println("Faled open\r\n");
@@ -235,19 +242,19 @@ void diskmon(void)
           f.close();
       }
         break;
-        case '2':
+        case 'F':
         if (diskcfm())
           Serial.println(LittleFS.format());
         break;
 
-      case '3':
+      case 'D':
         {
         Dir dir = LittleFS.openDir("/");
         while (dir.next())
           Serial.println(dir.fileName());
         }
         break;
-      case '4':
+      case 'S':
         {
           int n;
           EEPROM.write(MAXCYLEE, EEPROMSIG);
@@ -380,8 +387,9 @@ int monitor(void) {
     }
       break;
     case '?':
-      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it, <Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .)"));
-      Serial.println(F("<&>time\r\n"));
+      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it, <Q>uit,"
+      " <C>ontinue, .cccc (send characters to front panel; no space after .)"));
+      Serial.println(F("<&>time  <`>Disk menu\r\n"));
       Serial.print(F("Examples: R   RB   RB=2F00   M 100 10    M 100=<CR>AA 55 22;    B 0 @101   .44$$"));
       break;
 

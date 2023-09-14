@@ -54,5 +54,6 @@ bool get_bootsel_button(void);
 #define AUTOSTARTPIN 5
 #define ALTROMPIN 1
 #define MONITORPIN 14  // use -1 to read bootsel button (slow)
+#define DISKACT 25   // disk activity (25 to use Q LED)
 
 #endif

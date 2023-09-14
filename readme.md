@@ -1,4 +1,4 @@
-1802 UNOBlack v2
+1802 UNOBlack v3
 ===
 Starting with Oscar's KIM-UNO code, I changed out the 6502 for an 1802.
 See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for more details.
@@ -7,6 +7,8 @@ What's New
 ===
 This is the RP PICO version. Arduino IDE Settings: 
 "flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default"
+
+Big update allows you to use some flash (have to change the Arduinio settings above) as a disk drive to boot/use ElfOS). See ElfOs.md for more details.
 
 If you use the regular IDE, you may have to move the .ino, .cpp, and .h files to a new directory. For some reason, platform IO and vscode upset the IDE
 
@@ -33,6 +35,13 @@ To run it put C0 XX 00 at location 0 to jump to it (where XX is 80 for for IDIOT
 On power up (but not reset) the first 3 bytes of RAM initialize to C0 80 00.
 
 The file 1802rom.h only includes other files so it is reasonably easy to flip different ROM images around and change where they load. Note that 1802 code is not always relocatable, so be sure you put ROM code where it will run correctly.
+
+I/O pin definitions (in main.h): 
+* LEDPIN (Q LED)
+* AUTOSTARTPIN - Ground this pin to stop autoboot of the system ROM
+* ALTROMPIN - Ground this pin to select the alternate ROM currently not useful but could be
+* MONITORPIN - Ground this pin to enter the metamonitor (but doesn't work if you are stuck waiting for input, etc.). Note, set to -1 to use the BOOTSEL button but this will slow you down
+* DISKACT - Set to 25 to see disk activity on Q. Set to something else if you prefer.
 
 General Operation Overview
 ===

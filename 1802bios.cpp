@@ -121,7 +121,7 @@ int reset_ide()
     MAXCYL = EEPROM.read(MAXCYLEE + 1);
   }
   else
-    MAXCYL = 8;
+    MAXCYL = 7; // Default is 7 x 128K = about 1M-128K
 
   diskinit = 1;
   cpos = 0xfffffffful;
@@ -134,6 +134,8 @@ int reset_ide()
 int ideseek(uint8_t h, uint16_t c, uint8_t s)
 {
   unsigned newpos;
+  digitalWrite(DISKACT, 1);  // light stays on if error!
+
   if (h  != 0 )
     {
       Serial.println("Bad head");
@@ -143,10 +145,12 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
       if (c > MAXCYL)
         return -1;
 
-      newpos = s * sizeof(sector);
-      if (c != currentcy)
+      newpos = (s&0x3F) * sizeof(sector);
+      if (c != currentcy || ((s&0xC0)!=(currsector&0xC0)))
       {
-        sprintf(fname, "/ide%d.dsk", c);
+        int subtrack = (s & 0xC0) >> 6;
+        char subname[] = "ABCD";
+        sprintf(fname, "/ide%02x%c.dsk", c,subname[subtrack]);
         if (currentcy != 0xFFFF)
         {
           fide.close();
@@ -161,6 +165,7 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
           return -1;
         }
         currentcy = c;
+        currsector = s;
         if (!fide.seek(newpos, SeekSet))
           return -1;
         cpos = newpos + sizeof(sector); // for next time
@@ -171,8 +176,10 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
       if (!fide.seek(newpos, SeekSet))
         return -1;
     cpos = newpos + sizeof(sector);
+    currsector = s;
   }
-  return 0;  // need error checking on seeks
+  digitalWrite(DISKACT, 0);
+  return 0; 
 }
 
 int read_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
@@ -189,12 +196,10 @@ int write_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
   int i;
   if (ideseek(h, c, s))
   {
-    Serial.println("WrSeek Err\r\n");
     return -1;
   }
   if (fide.write(ram+buff, sizeof(sector)) != sizeof(sector))
   {
-    Serial.println("Wr Err\r\n");
     return -1;
   }
 #if 0
@@ -618,9 +623,7 @@ int bios(uint16_t fn)
   case F_BOOTIDE:
     init_scrt(0xf0);
     reset_ide();
-    Serial.printf("Reading %s\r\n",fname);
-    Serial.println(read_ide(0x100, 0, 0, 0));
-    Serial.printf("Read from %s\r\n",fname);
+    read_ide(0x100, 0, 0, 0);
     reg[3] = 0x106;
     p = 3;
     break;
