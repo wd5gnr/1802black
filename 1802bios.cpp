@@ -106,6 +106,7 @@ int diskinit = 0;
 unsigned currentcy = 0xFFFF;
 unsigned currsector = 0xFFFF;
 char fname[32]; // IDE file name
+uint8_t dis_diskled = 0;
 
 uint8_t MAXCYL = 16;
 
@@ -134,7 +135,7 @@ int reset_ide()
 int ideseek(uint8_t h, uint16_t c, uint8_t s)
 {
   unsigned newpos;
-  digitalWrite(DISKACT, 1);  // light stays on if error!
+  if (!dis_diskled) digitalWrite(DISKACT, 1);  // light stays on if error!
 
   if (h  != 0 )
     {
@@ -178,7 +179,7 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
     cpos = newpos + sizeof(sector);
     currsector = s;
   }
-  digitalWrite(DISKACT, 0);
+  if (!dis_diskled) digitalWrite(DISKACT, 0);
   return 0; 
 }
 

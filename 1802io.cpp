@@ -187,6 +187,7 @@ void (*outputmap[])(uint8_t) =
 #define KEY_WR_OMAP 1
 #define KEY_WR_BUFH 2
 #define KEY_WR_BUFL 3
+#define KEY_WR_DISDISKLED 4
 #define KEY_WR_BUF16 0x80
 #define KEY_WR_DELAY16 0x81
 #define KEY_WR_TRAP16 0x82
@@ -217,6 +218,10 @@ void io_write_key(uint8_t key, uint16_t val)
 
   case KEY_WR_BUFL: // low part of keybuffer
     keybuffer64 = (keybuffer64 & 0xFF00) | val;
+    break;
+
+  case KEY_WR_DISDISKLED:
+    dis_diskled = val;
     break;
 
   case KEY_WR_BUF16:
