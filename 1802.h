@@ -75,7 +75,7 @@ extern int monactive;
 
 #endif
 
-
+extern uint16_t trap_address, trap_vector_address;
 
 #if BIOS == 1
 int bios(uint16_t fn);

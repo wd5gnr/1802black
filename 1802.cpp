@@ -18,6 +18,9 @@ unsigned int idata;
 
 int noserial = 0;
 
+uint16_t trap_address=0;
+uint16_t trap_vector_address=0;
+
 // CPU registers and stuff
 uint16_t reg[16];
 uint8_t p, x, d, df, q, t;
@@ -76,6 +79,13 @@ int run(void)
 {
   bool gomon;
   uint8_t inst = memread(reg[p]);
+  // check for trap
+  if (trap_address!=0 && reg[p]==trap_address)
+  {
+    reg[p] = trap_vector_address;
+    inst = memread(reg[p]);  // reload instruction!
+    trap_address = 0; // one shot
+  }
 
 #if MONITOR == 1
   if (monactive == 0 && mon_checkbp() == 0)

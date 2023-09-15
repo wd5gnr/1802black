@@ -189,6 +189,8 @@ void (*outputmap[])(uint8_t) =
 #define KEY_WR_BUFL 3
 #define KEY_WR_BUF16 0x80
 #define KEY_WR_DELAY16 0x81
+#define KEY_WR_TRAP16 0x82
+#define KEY_WR_TVECTOR16 0x83
 
 
 void io_write_key(uint8_t key, uint16_t val)
@@ -223,8 +225,13 @@ void io_write_key(uint8_t key, uint16_t val)
   case KEY_WR_DELAY16:
     delay(val);
     break;
-
-  }
+  case KEY_WR_TRAP16:
+    trap_address = val;
+    break;
+  case KEY_WR_TVECTOR16:
+    trap_vector_address = val;
+    break;
+}
 }
 // Input from any port gives you the data register
 // except port 1 is serial input
