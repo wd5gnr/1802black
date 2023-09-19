@@ -360,7 +360,7 @@ int bios(uint16_t fn)
     break;
 
   case F_INPUT:
-  case F_INPUTL:
+  case F_INPUTL:   // real BIOS will update RF to point to terminator so we need to do that also
   {
     int c;
     int n = 0;
@@ -409,7 +409,7 @@ int bios(uint16_t fn)
       if (c > 0 && (reg[0xe] & 0x100))
         serputc(c);
     } while (c != 0);
-
+    reg[0xf] = ptr - 1;
     p = 5;
   }
 
