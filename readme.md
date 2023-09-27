@@ -8,6 +8,8 @@ What's New
 This is the RP PICO version. Arduino IDE Settings: 
 "flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default"
 
+The binaries directory has UF2 files for a 2M standard Pico and a 16M clone.
+
 Big update allows you to use some flash (have to change the Arduinio settings above) as a disk drive to boot/use ElfOS). See ElfOs.md for more details.
 
 If you use the regular IDE, you may have to move the .ino, .cpp, and .h files to a new directory. For some reason, platform IO and vscode upset the IDE
@@ -237,6 +239,8 @@ Note: lower case letters represent numbers
 * B n Pp - Break when P becomes equal to p
 * B n Iii - Break when current instruction is ii
 * C - Continue execution (assuming 1802 is running; same as Q)
+* D aaaa - Disassembler from address aaaa (256 addresses)
+* D aaaa nnnn - Disassembler from address (nnnn count)
 * G aaaa - Goto address
 * G aaaa p - Set P to p and goto address
 * I n - Input from port n
@@ -251,6 +255,7 @@ Note: lower case letters represent numbers
 * R n=vvvv - Set register n to value vvvv
 * X - Exit. This will not resume execution.
 * . - Dot command. Sends next characters to the front panel simulation. That is, .$ toggles EF4. .41$ enters the number 41 on the keypad and presses (but does not release) EF4
+* ` - Backquote enters disk menu
 * ? - Very basic help message
 
 Registers
