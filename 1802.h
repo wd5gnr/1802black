@@ -54,8 +54,8 @@ uint8_t memread(uint16_t a);
 void memwrite(uint16_t a, uint8_t d);
 uint8_t input(uint8_t port);
 void output(uint8_t port, uint8_t val);
-void print2hex(uint8_t v);
-void print4hex(uint16_t v);
+void print2hex(uint8_t v, int tab=0);
+void print4hex(uint16_t v, int tab=0);
 void updateLEDdata(void);
 
 #if MONITOR == 1

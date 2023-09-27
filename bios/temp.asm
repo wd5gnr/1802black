@@ -12,38 +12,24 @@
 ; *** without express written permission from the author. ***
 ; *******************************************************************
 
-;[RLA] These are defined on the rcasm command line!
-;[RLA] #define ELFOS ; build the version that runs under Elf/OS
-;[RLA] #define 1 ; build the STG EPROM version
-;[RLA] #define 2 2 ; feature level, 1 or 2
-;[RLA] #define PICOROM ; define for Mike's PIcoElf version
+; #define ELFOS
+;#define PICOROM
 
-;[RLA] rcasm doesn't have any way to do a logical "OR" of assembly
-;[RLA} options, so define a master "ANYROM" option that's true for
-;[RLA} any of the ROM conditions...
-# 26 "rcbasic.asm"
-include config.inc
+; #define ELF2K
 
+; Define as 0 for default order of operations
+; 1 means that AND/OR is lower than = <> etc.
 
-include bios.inc
-
-
-
+; Set to 1 if you want the original behavior of IF blah blah GOTO being OK
+; Note that this turns OFF IF blah blah THEN 100
 
 ; R7 - Group 7 subroutines
 ; R8 - GOSUB stack
 ; R9 - Expression stack
 ; RA - Current token
 ; RC - Current line pointer
-# 51 "rcbasic.asm"
-;[RLA] XMODEM entry vectors for the STG EPROM ...
-xopenw: equ XMODEM + 0*3
-xopenr: equ XMODEM + 1*3
-xread: equ XMODEM + 2*3
-xwrite: equ XMODEM + 3*3
-xclosew: equ XMODEM + 4*3
-xcloser: equ XMODEM + 5*3
-
+# 110 "rcbasic.asm"
+include bios.inc
 
 TKN_USTR: equ 0fch
 TKN_QSTR: equ 0fdh
@@ -65,8 +51,9 @@ ERR_BADDIM: equ 11
 ERR_UNSUP: equ 12
 
 CMD_START: equ 26
-# 123 "rcbasic.asm"
-           org BASIC
+# 154 "rcbasic.asm"
+           org 0c000h
+
 
 
 
@@ -98,9 +85,9 @@ set_tkn: ldi high tokens ; point to input buffer
 ; *** DF=1 - exact match ***
 ; *** DF=0 - line is higher ***
 ; ***************************************
-find_ln: ldi high pgmtext ; point to beginning of basic storage
+find_ln: ldi high basic ; point to beginning of basic storage
            phi rc
-           ldi low pgmtext
+           ldi low basic
            plo rc
 find_lp: lda rc ; get line size
            bz find_eof ; jump if no more lines
@@ -312,7 +299,15 @@ func_call: ghi r6 ; save last value to stack
 ; *** End of group 7 subroutines ***
 ; ***************************************************************************
 
-           org (BASIC+0100h)
+ ;; This is the command table
+ ;; tokens vector here and anything that is not
+ ;; really a command (like MID$) should define syn_err here
+ ;; We need to know about the string functions so the count
+ ;; is computed here
+ ;; in functable (below) everything before PRINT is a real function
+ ;; Everything from PRINT on down is a command
+
+           org 0c100h
 cmd_table: dw ex_print ; 0
            dw ex_print ; 1
            dw ex_let ; 2
@@ -336,7 +331,7 @@ cmd_table: dw ex_print ; 0
            dw ex_next ; 19
            dw syn_err ; 20 (NEXT)
            dw ex_on ; 21
-           dw exec_dn ; 22 (DATA)
+           dw exec_dn ; 22 (00100h)
            dw ex_read ; 23
            dw ex_restore ; 24
            dw ex_dim ; 25
@@ -346,11 +341,14 @@ cmd_table: dw ex_print ; 0
            dw syn_err ; 29 (LEN)
            dw syn_err ; 30 (ASC)
            dw syn_err ; 31 (VAL)
+startstrfunc:
            dw syn_err ; 32 (STR)
            dw syn_err ; 33 (CHR)
            dw syn_err ; 34 (LEFT)
            dw syn_err ; 35 (RIGHT)
-           dw syn_err ; 35 (MID)
+           dw syn_err ; 36 (MID)
+    dw syn_err ; 37 (HEX)
+endstrfunc:
 
            dw ex_bye ; 21
 
@@ -362,11 +360,22 @@ cmd_table: dw ex_print ; 0
            dw ex_load ; 23
 
 
+strfuncct: equ (endstrfunc-startstrfunc)/2
+
+
 restart: ldi 0ch ; form feed
            sep scall ; clear the screen
+
+
+
            dw f_type
+
            sep scall ; display welcome message
+
+
+
            dw f_inmsg
+
 
 
 
@@ -381,8 +390,16 @@ restart: ldi 0ch ; form feed
            phi r7
            ldi low group_7
            plo r7
+
+
+
+
+
+
+
            sep scall ; call bios to get end of memory
            dw f_freemem
+
            ldi 0 ; zero terminator in heap memory
            str rf
            ldi high memory ; point to high memory storage
@@ -411,8 +428,16 @@ start: sep scall ; display welcome message
            db 'RC/Basic L2',10,13
 
            db '(c) Copyright 2006 by Michael H. Riley',10,13,10,13,0
+
+
+
+
+
+
+
 picostrt: sep scall ; call bios to get end of memory
            dw f_freemem
+
            ldi high memory ; point to high memory storage
            phi rd
            ldi low memory
@@ -428,7 +453,7 @@ picostrt: sep scall ; call bios to get end of memory
            plo r7
            sep r7 ; mark no program loaded
            db set_word.0
-           dw pgmtext
+           dw basic
            dw 0
            sep r7 ; set initial value in lfsr
            db set_word.0
@@ -537,7 +562,7 @@ was_run: sep scall ; add to error message
 ; **************************************************
 bas_end: sep r7 ; point to basic program area
            db set_rf.0
-           dw pgmtext
+           dw basic
 bas_endlp: ldn rf ; see if at end
            lbnz bas_end2 ; jump if not
            sep sret ; return to caller
@@ -1215,6 +1240,8 @@ tokenterm: ldi 0ffh ; quoted string termination
 tokennum: lbz numisdec ; jump if decimal number
            sep scall ; convert hex number
            dw f_hexin
+ ;; need to skip terminating H here
+    inc rf
            lbr numcont ; continue processing number
 numisdec: sep scall ; convert number
            dw f_atoi
@@ -1302,7 +1329,7 @@ endvarslp: ldn rf ; get size
 endvarsdn: sep sret ; return to caller
 
 ; ************************************************
-; *** Get next data item from a DATA statement ***
+; *** Get next data item from a 00100h statement ***
 ; ************************************************
 get_data: glo ra ; need to save RA
            stxd
@@ -1359,7 +1386,7 @@ data_ne: sep scall ; find next data line
            lbr data_cnt ; finish up
 
 ; *******************************************
-; *** Find next DATA statement in program ***
+; *** Find next 00100h statement in program ***
 ; *******************************************
 find_data: glo rc ; save current line pointer
            stxd
@@ -1382,7 +1409,7 @@ fnd_datlp: sep r7 ; get next line
            inc rf
            ldn rf ; get the token
            smi CMD_START ; shift into command range
-           smi 96h ; check for DATA
+           smi 96h ; check for 00100h
            lbz fnd_datys ; jump if it is
            dec rf ; back to line start
            dec rf
@@ -1487,6 +1514,151 @@ ex_and: sep r7 ; get top of expression stack
            db ex_push.0
            sep sret ; and return
 
+
+; ************************************
+; *** make both arguments positive ***
+; *** Arg1 RF ***
+; *** Arg2 RD ***
+; *** Returns D=0 - signs same ***
+; *** D=1 - signs difer ***
+; ************************************
+mdnorm: ghi rf ; get high byte if divisor
+           str r2 ; store for sign check
+           ghi rd ; get high byte of dividend
+           xor ; compare
+           shl ; shift into df
+           ldi 0 ; convert to 0 or 1
+           shlc ; shift into D
+           plo re ; store into sign flag
+           ghi rf ; need to see if RF is negative
+           shl ; shift high byte to df
+           lbnf mdnorm2 ; jump if not
+           ghi rf ; 2s compliment on RF
+           xri 0ffh
+           phi rf
+           glo rf
+           xri 0ffh
+           plo rf
+           inc rf
+mdnorm2: ghi rd ; now check rD for negative
+           shl ; shift sign bit into df
+           lbnf mdnorm3 ; jump if not
+           ghi rd ; 2 compliment on RD
+           xri 0ffh
+           phi rd
+           glo rd
+           xri 0ffh
+           plo rd
+           inc rd
+mdnorm3: glo re ; recover sign flag
+           sep sret ; and return to caller
+
+; *** RC = RB/R7
+; *** RB = remainder
+; *** uses R8 and R9
+
+; *** RB = RF/RD
+; ****RF = remainder
+; *** uses R8 and R9
+div16: sep scall ; normalize numbers
+           dw mdnorm
+           plo re ; save sign comparison
+           ldi 0 ; clear answer
+           phi rb
+           plo rb
+           phi r8 ; set additive
+           plo r8
+           inc r8
+           glo rd ; check for divide by 0
+           lbnz d16lp1
+           ghi rd
+           lbnz d16lp1
+           ldi 0ffh ; return 0ffffh as div/0 error
+           phi rb
+           plo rb
+           sep sret ; return to caller
+d16lp1: ghi rd ; get high byte from r7
+           ani 128 ; check high bit
+           lbnz divst ; jump if set
+           glo rd ; lo byte of divisor
+           shl ; multiply by 2
+           plo rd ; and put back
+           ghi rd ; get high byte of divisor
+           shlc ; continue multiply by 2
+           phi rd ; and put back
+           glo r8 ; multiply additive by 2
+           shl
+           plo r8
+           ghi r8
+           shlc
+           phi r8
+           lbr d16lp1 ; loop until high bit set in divisor
+divst: glo rd ; get low of divisor
+           lbnz divgo ; jump if still nonzero
+           ghi rd ; check hi byte too
+           lbnz divgo
+           glo re ; get sign flag
+           shr ; move to df
+           lbnf divret ; jump if signs were the same
+           ghi rb ; perform 2s compliment on answer
+           xri 0ffh
+           phi rb
+           glo rb
+           xri 0ffh
+           plo rb
+           inc rb
+divret: sep sret ; jump if done
+divgo: ghi rf ; copy dividend
+           phi r9
+           glo rf
+           plo r9
+           glo rd ; get lo of divisor
+           stxd ; place into memory
+           irx ; point to memory
+           glo rf ; get low byte of dividend
+           sm ; subtract
+           plo rf ; put back into r6
+           ghi rd ; get hi of divisor
+           stxd ; place into memory
+           irx ; point to byte
+           ghi rf ; get hi of dividend
+           smb ; subtract
+           phi rf ; and put back
+           lbdf divyes ; branch if no borrow happened
+           ghi r9 ; recover copy
+           phi rf ; put back into dividend
+           glo r9
+           plo rf
+           lbr divno ; jump to next iteration
+divyes: glo r8 ; get lo of additive
+           stxd ; place in memory
+           irx ; point to byte
+           glo rb ; get lo of answer
+           add ; and add
+           plo rb ; put back
+           ghi r8 ; get hi of additive
+           stxd ; place into memory
+           irx ; point to byte
+           ghi rb ; get hi byte of answer
+           adc ; and continue addition
+           phi rb ; put back
+divno: ghi rd ; get hi of divisor
+           shr ; divide by 2
+           phi rd ; put back
+           glo rd ; get lo of divisor
+           shrc ; continue divide by 2
+           plo rd
+           ghi r8 ; get hi of divisor
+           shr ; divide by 2
+           phi r8 ; put back
+           glo r8 ; get lo of divisor
+           shrc ; continue divide by 2
+           plo r8
+           lbr divst ; next iteration
+
+
+
+
 ; *********************************
 ; *** Divide top 2 stack values ***
 ; *********************************
@@ -1505,7 +1677,7 @@ ex_div: sep r7 ; get top of expression stack
            ghi r8
            stxd
            sep scall ; call bios to divide
-           dw f_div16
+           dw div16
            glo rb ; transfer answer
            plo rf
            ghi rb
@@ -1750,94 +1922,21 @@ new_expr: ldi high expstack ; setup expression stack
            phi r9
            ldi low expstack
            plo r9
-expr: ldn ra ; get first token
-           smi 081h ; see if negative sign
-           lbnz expr_pos ; jump if not
-           inc ra ; move past minus sign
-           sep scall ; call level 2
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; then call negate
-           dw ex_neg
-           lbr expr_1 ; continue
-expr_pos: ldn ra ; check for plus sign
-           smi 080h
-           lbnz expr_0 ; jump if not
-           inc ra ; ignore it
-expr_0: sep scall ; call level 2 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-expr_1: ldn ra ; get token
-           smi 086h ; check for =
-           lbnz expr_1a ; jump if not
-           inc ra ; move past =
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check for equality
-           dw ex_eq
-           lbr expr_1 ; look for more
-expr_1a: smi 1 ; check for <=
-           lbnz expr_1b ; jump if not
-           inc ra ; move past symbol
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check
-           dw ex_lte
-           lbr expr_1 ; look for more
-expr_1b: smi 1 ; check for >=
-           lbnz expr_1c ; jump if not
-           inc ra ; move past symbol
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check
-           dw ex_gte
-           lbr expr_1 ; look for more
-expr_1c: smi 1 ; check for <>
-           lbnz expr_1d ; jump if not
-           inc ra ; move past symbol
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check
-           dw ex_neq
-           lbr expr_1 ; look for more
-expr_1d: smi 1 ; check for <
-           lbnz expr_1e ; jump if not
-           inc ra ; move past symbol
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check
-           dw ex_lt
-           lbr expr_1 ; look for more
-expr_1e: smi 1 ; check for >
-           lbnz expr_1f ; jump if not
-           inc ra ; move past symbol
-           sep scall ; call level 1 to get value
-           dw level_1
-           lbdf err_ret ; jump on syntax error
-           sep scall ; now check
-           dw ex_gt
-           lbr expr_1 ; look for more
-expr_1f: adi 0 ; signal no errors
-           ldi 2 ; signal integer result
-           sep sret ; and return to caller
-
+expr:
+# 2042 "rcbasic.asm"
 ; ***********************************
 ; *** Level 1, find AND, OR, &, | ***
 ; ***********************************
-level_1: sep scall ; call level 2 to get value
-           dw level_2
+expr_0: sep scall ; call level 2 to get value
+           dw level_1
            lbdf err_ret ; jump on syntax error
 level_1c: ldn ra ; get next byte
            smi 08eh ; see if AND
            lbnz level_1a ; jump if not
 level_and: inc ra ; move past plus
            sep scall ; call level 2 to get value
-           dw level_2
+           ;dw level_1
+           dw mexpr
            lbdf err_ret ; jump on syntax error
            sep scall ; and top 2 stack values
            dw ex_and
@@ -1848,7 +1947,8 @@ level_1a: smi 1 ; check for &
            lbnz level_1b ; jump if not
 level_or: inc ra ; move past minus sign
            sep scall ; call level 2 to get value
-           dw level_2
+          ; dw level_1
+           dw mexpr
            lbdf err_ret ; jump on syntax error
            sep scall ; or top 2 stack values
            dw ex_or
@@ -1858,6 +1958,68 @@ level_1b: smi 1 ; check for |
 level_1n: adi 0 ; signal no error in level
            sep sret ; return from level 2
 
+level_1: sep scall ; call level 2 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+expr_1: ldn ra ; get token
+           smi 086h ; check for =
+           lbnz expr_1a ; jump if not
+           inc ra ; move past =
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check for equality
+           dw ex_eq
+           lbr expr_1 ; look for more
+expr_1a: smi 1 ; check for <=
+           lbnz expr_1b ; jump if not
+           inc ra ; move past symbol
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check
+           dw ex_lte
+           lbr expr_1 ; look for more
+expr_1b: smi 1 ; check for >=
+           lbnz expr_1c ; jump if not
+           inc ra ; move past symbol
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check
+           dw ex_gte
+           lbr expr_1 ; look for more
+expr_1c: smi 1 ; check for <>
+           lbnz expr_1d ; jump if not
+           inc ra ; move past symbol
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check
+           dw ex_neq
+           lbr expr_1 ; look for more
+expr_1d: smi 1 ; check for <
+           lbnz expr_1e ; jump if not
+           inc ra ; move past symbol
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check
+           dw ex_lt
+           lbr expr_1 ; look for more
+expr_1e: smi 1 ; check for >
+           lbnz expr_1f ; jump if not
+           inc ra ; move past symbol
+           sep scall ; call level 1 to get value
+           dw level_2
+           lbdf err_ret ; jump on syntax error
+           sep scall ; now check
+           dw ex_gt
+           lbr expr_1 ; look for more
+expr_1f: adi 0 ; signal no errors
+           ldi 2 ; signal integer result
+           sep sret ; and return to caller
+# 2232 "rcbasic.asm"
 ; **************************
 ; *** Level 2, find +, - ***
 ; **************************
@@ -1918,6 +2080,22 @@ level_3n: adi 0 ; signal no error
 ; *** Check for numbers, variables, functions ***
 ; ***********************************************
 level_4: ldn ra ; get token
+
+           smi 80h ; PLUS
+           bnz l4negck
+           inc ra
+           br l4num
+l4negck: smi 1
+           bnz l4num
+           inc ra
+           sep scall
+           dw level_4
+           lbdf err_ret
+           sep scall
+           dw ex_neg
+           br push_it
+l4num: ldn ra
+
            smi TKN_NUM ; check for number
            lbnz level_4a ; jump if not
            inc ra ; move past token
@@ -2053,7 +2231,7 @@ fn_flg: sep r7 ; get flags
 ; *******************
 ; *** Process FRE ***
 ; *******************
-# 2120 "rcbasic.asm"
+# 2453 "rcbasic.asm"
 fn_fre: sep scall ; get end of basic
            dw end_vars
            sep r7 ; move to rd
@@ -2396,8 +2574,20 @@ right_f: ghi rb ; get request count
 
 
 ; ********************
-; *** Process STR$ ***
+; *** Process STR$ and HEX$ ***
 ; ********************
+fn_hex: sep scall
+    dw expr
+           lbdf err_ret
+ sep r7
+ db ex_pop.0
+ sep r7
+ db rf_rd.0
+ sep r7
+ db set_buf.0
+ sep scall
+ dw f_hexout4
+ br fn_strhex
 fn_str: sep scall ; get argument
            dw expr
            lbdf err_ret ; jump if error resulted
@@ -2409,6 +2599,7 @@ fn_str: sep scall ; get argument
            db set_buf.0
            sep scall ; convert number to ascii
            dw f_intout
+fn_strhex:
            ldi 0ffh ; terminate it
            str rf
            inc rf
@@ -2434,13 +2625,39 @@ fn_val: sep scall ; get argument
            db ex_pop.0
            sep scall ; deallocate temporary storage
            dw dealloc
-           sep scall ; convert to integer
+ ;; the problem here is we have a terminator of FF and
+ ;; BIOS thinks the terminator is 0
+    ldi high ibuffer
+    phi rd ; we will use RD and ibuffer for a second
+    ldi low ibuffer
+    plo rd
+fn_vallp: ldn rf
+    xri 0ffh
+    bz fn_vall0
+           lda rf
+     str rd
+    inc rd
+    br fn_vallp
+fn_vall0: ldi 0
+    str rd
+    ldi high ibuffer ;
+    phi rf
+    ldi low ibuffer
+    plo rf
+    sep scall
+    dw f_idnum
+    lbdf valdec
+    bz valdec
+    sep scall
+    dw f_hexin
+           br valhex
+valdec: sep scall ; convert to integer
            dw f_atoi
-           ghi rd ; put back into rf
+valhex: ghi rd ; put back into rf
            phi rf
            glo rd
            plo rf
-           lbr len_dn ; finish
+valdn: lbr len_dn ; finish
 
 new_mexpr: ldi high expstack ; setup expression stack
            phi r9
@@ -2476,17 +2693,20 @@ mexpr_nv: ldn ra ; recover character
            lbnf mexpr_n ; jump if numeric function
            smi 0a0h
            lbnf mexpr_n ; jump if numeric function
-           smi 5 ; check high range of string functions
+           smi strfuncct ; check high range of string functions
            lbnf mexpr_s
            lbr mexpr_n
+# 2927 "rcbasic.asm"
 mexpr_s: sep scall ; call string evaluator
            dw sexpr
            ldi 3 ; signal string result
            sep sret ; and return
 mexpr_n: sep scall ; call numeric evaluator
            dw expr
-mexpr_r: ldi 2 ; signal string result
+mexpr_r: ldi 2 ; signal numeric result (note sexpr can return here)
            sep sret ; and return
+
+
 
 ; *****************************************************************
 ; **** Strcmp compares the strings pointing to by R(D) and R(F) ***
@@ -2497,7 +2717,7 @@ mexpr_r: ldi 2 ; signal string result
 ; *****************************************************************
 strcmp: lda rd ; get next byte in string
          xri 0ffh ; check for end
-         bz strcmpe ; found end of first string
+         lbz strcmpe ; found end of first string
          xri 0ffh ; restore character
          str r2 ; store into memory
          lda rf ; get byte from first string
@@ -2510,7 +2730,7 @@ strcmp1: ldi 255 ; return -1, first string is smaller
          sep sret ; return to calelr
 strcmpe: lda rf ; get byte from second string
          xri 0ffh ; check for end of 2nd string
-         bz strcmpm ; jump if also zero
+         lbz strcmpm ; jump if also zero
          ldi 1 ; first string is smaller (returns -1)
          sep sret ; return to caller
 strcmpm: ldi 0 ; strings are a match
@@ -2595,7 +2815,7 @@ sexpr: sep scall ; get argument
            sep scall ; call string comparison
            dw docmp
            lbdf err_ret ; jump on error
-           lbnz sfalse ; jump if falst
+           lbnz sfalse ; jump if false
 strue: ldi 0ffh ; put -1 on stack
 s_stack: sex r9 ; point to expression stack
            stxd
@@ -2605,8 +2825,19 @@ sfix: ldi high mexpr_r ; change to numeric return
            phi r6
            ldi low mexpr_r
            plo r6
-           adi 0 ; signal success
-           sep sret ; and return
+
+
+
+
+           ldn ra
+           bz sfix0
+           smi 09fh ; then
+           bz sfix0
+           lbr level_1c
+sfix0: adi 0
+           sep sret
+
+
 sfalse: ldi 0 ; need a zero on the stack
            lbr s_stack ; finish up
 sexpr_a: smi 1 ; check for <=
@@ -2722,7 +2953,8 @@ sexpr_l1a: lda ra ; get token again
            lbz fn_right ; jump if so
            smi 1 ; check for mid$
            lbz fn_mid ; jump if so
-
+           smi 1 ; check for hex$
+         lbz fn_hex
            dec ra ; move back
            ldn ra ; see if possible variable
            sep scall
@@ -2758,7 +2990,7 @@ sclosed: lda ra ; next token must be a )
 ; *** Find variable address pointed to by RA ***
 ; *** Returns: RF - address of value ***
 ; **********************************************
-# 2849 "rcbasic.asm"
+# 3245 "rcbasic.asm"
 get_var: ldi high var_pos ; need variable table
            phi rf
            ldi low var_pos
@@ -3127,11 +3359,26 @@ ex_if: sep scall ; evaluate expression
            ghi rf
            or
            lbz exec_dn ; jump if IF failed test
-if_chk: ldn ra ; check for optional THEN
+
+
+
+
+
+
+
+if_chk: lda ra ; check for NOT OPTIONAL THEN
            smi 09fh
-           lbnz execute ; not there, so just continue
-           inc ra ; move past it
-           lbr execute ; and continue
+           bz if_exec ; not there, so just continue
+           ; it would be nice to check for end of line but there is no clear end of line unless you parse numbers and tokens so
+           ; you do not hit a zero accidentally
+           br if_chk ; and continue
+if_exec: ldn ra
+           smi TKN_NUM
+           lbnz execute
+           ; implied GOTO
+           lbr ex_goto
+
+
 
 ; *********************
 ; *** Process f_input ***
@@ -3289,10 +3536,10 @@ ex_flist: glo ra ; save token address
            stxd
            ghi rc
            stxd
-           ldi high pgmtext ; point to basic storage
+           ldi high basic ; point to basic storage
            phi ra ; put into ra and rc
            phi rc
-           ldi low pgmtext
+           ldi low basic
            plo ra
            plo rc
 flist_lp: ldn ra ; get line size
@@ -3402,7 +3649,7 @@ ex_new: ldi 0 ; terminate program execution
            plo rc
            sep r7 ; set first byte of basic area to 0
            db set_byte.0
-           dw pgmtext
+           dw basic
            db 0
            sep scall ; setup variable table
            dw rst_vars
@@ -3542,7 +3789,7 @@ ex_print: ldn ra ; get next symbol
            smi 08dh ; check for comma
            lbz print_cm ; jump if so
            glo re ; recover symbol
-# 3640 "rcbasic.asm"
+# 4051 "rcbasic.asm"
            dec ra ; point to beginning of expression
            sep scall ; evaluate it
            dw new_mexpr
@@ -3576,7 +3823,7 @@ prt_int: sep r7 ; retrieve final value
            sep scall ; print value
            dw f_msg
            lbr ex_print ; and look for other things to print
-# 3682 "rcbasic.asm"
+# 4093 "rcbasic.asm"
 print_sc: ldn ra ; get next symbol
            lbz print_ncr ; jump if no cr needed
            smi 093h ; colon is also valid for end
@@ -3622,10 +3869,10 @@ ret_good: dec r8 ; retrieve current token pointer
 ; *******************
 ; *** Process RUN ***
 ; *******************
-ex_run: ldi high pgmtext ; point to first program line
+ex_run: ldi high basic ; point to first program line
            phi rc ; placei into rc and ra
            phi ra
-           ldi low pgmtext
+           ldi low basic
            plo rc
            plo ra
            ldi high gosub_st ; setup gosub stack
@@ -3647,19 +3894,19 @@ ex_run: ldi high pgmtext ; point to first program line
            db set_word.0
            dw for_pos
            dw for_st
-           sep r7 ; need to setup DATA pointers
+           sep r7 ; need to setup 00100h pointers
            db set_word.0
            dw data_lin
-           dw pgmtext
+           dw basic
            sep r7 ; point rf to beginning of basic
            db set_rf.0
-           dw pgmtext
+           dw basic
            inc rf ; move to first token
            inc rf
            inc rf
            ldn rf ; and retrieve it
            smi CMD_START ; subtract command offset
-           smi 96h ; check for DATA
+           smi 96h ; check for 00100h
            lbnz nodata
            inc rf ; otherwise point to first data item
            ldi high data_pos ; setup data position
@@ -3671,7 +3918,7 @@ ex_run: ldi high pgmtext ; point to first program line
            inc rd
            glo rf
            str rd
-           lbr yesdata ; and skip looking for DATA
+           lbr yesdata ; and skip looking for 00100h
 nodata: sep scall ; find next data statement
            dw find_data
 
@@ -3684,9 +3931,9 @@ yesdata: lbr exec_tst ; start program execution
 ; ************************
 ; *** Exit from basic ***
 ; ************************
+ex_bye: lbr exitaddr
 
-ex_bye: lbr 8003h
-# 3802 "rcbasic.asm"
+
 ; **********************************************************
 ; *** Pico/Elf ROM ***
 ; **********************************************************
@@ -3695,7 +3942,7 @@ ex_bye: lbr 8003h
 ; ********************
 ex_save: sep scall ; open XMODEM channel
            dw xopenw
-           mov rf,pgmtext ; point to basic space
+           mov rf,basic ; point to basic space
            sep scall ; get size of block
            dw size_end
            push rc ; save count
@@ -3709,7 +3956,7 @@ ex_save: sep scall ; open XMODEM channel
            mov rc,2 ; 2 bytes to write
            sep scall ; write them to XMODEM channel
            dw xwrite
-           mov rf,pgmtext ; point back to basic space
+           mov rf,basic ; point back to basic space
            pop rc ; recover count
            sep scall ; write block to XMODEM channel
            dw xwrite
@@ -3734,7 +3981,7 @@ ex_load: sep scall ; attempt to open XMODEM channel
            phi rc ; put into count
            ldn rf ; get low byte of count
            plo rc ; put into count
-           mov rf,pgmtext ; point to basic space
+           mov rf,basic ; point to basic space
            sep scall ; Read from XMODEM channel
            dw xread
            sep scall ; close the XMODEM channel
@@ -3745,7 +3992,7 @@ ex_load: sep scall ; attempt to open XMODEM channel
            plo rc
            phi rc
            lbr exec_dn ; finish up
-# 3990 "rcbasic.asm"
+# 4387 "rcbasic.asm"
 ; ******************************************************************************
 ; *** Start of L2 statements ***
 ; ******************************************************************************
@@ -4062,6 +4309,7 @@ next_nv: sep r7 ; get FOR stack into RB
            dec rb
            ghi rd
            sdb
+           shl ; shift sign into DF
            lbdf next_ne ; jump if not at end
            lbr next_ok
 next_p: glo rd ; do end-RD
@@ -4069,7 +4317,8 @@ next_p: glo rd ; do end-RD
            dec rb ; point to msb
            ghi rd
            sdb
-           lbdf next_ne ; jump if not at end
+           shl ; shift sign into DF
+           lbnf next_ne ; jump if not at end
 next_ok: irx ; lsb of end
            irx ; msb or ra
            irx ; lsb of ra
@@ -4245,10 +4494,10 @@ rst_strt: ldi high data_lin ; point to pointer location
            phi rf
            ldi low data_lin
            plo rf
-           ldi high pgmtext ; restore to beginning of basic
+           ldi high basic ; restore to beginning of basic
            str rf
            inc rf
-           ldi low pgmtext
+           ldi low basic
            str rf
 rest_cnt: dec rf ; retrieve pointer
            lda rf ; into rd
@@ -4260,7 +4509,7 @@ rest_cnt: dec rf ; retrieve pointer
            inc rd
            ldn rd ; and get it
            smi CMD_START ; subtract command offset
-           smi 96h ; check for DATA
+           smi 96h ; check for 00100h
            lbnz nodata2
            inc rd ; otherwise point to first data item
            ldi high data_pos ; setup data position
@@ -5014,7 +5263,16 @@ size_dn: irx ; recover RF
            plo rf
            inc rc ; add in program terminator
            sep sret ; and return to caller
-# 5268 "rcbasic.asm"
+
+;#ifdef ELFOS
+;o_inmsg: lda r6 ; load byte from message
+; lbz return ; return if done
+; sep scall ; display byte
+; dw f_type
+; lbr o_inmsg
+;#endif
+
+
 begin2: ldi high stack ; restart address here
            phi r2
            ldi low stack
@@ -5129,12 +5387,14 @@ functable: db ('+'+80h) ; 0
            db 'LEFT$',('('+80h) ; 34
            db 'RIGHT$',('('+80h) ; 35
            db 'MID$',('('+80h) ; 36
+       db 'HEX$',('('+80h) ; ; 37
+
 
            db 'BY',('E'+80h) ; 43
 
            db 'SAV',('E'+80h) ; 44
            db 'LOA',('D'+80h) ; 45
-# 5399 "rcbasic.asm"
+# 5800 "rcbasic.asm"
            db 0
 term: db 0ffh
 crlf: db 10,13,0
@@ -5142,13 +5402,8 @@ crlf: db 10,13,0
 endrom: equ $
 
 
-           org 100h
-
-
-
-
-
-
+           org 00100h
+# 5818 "rcbasic.asm"
 memory: ds 2
 data_lin: ds 2
 data_pos: ds 2
@@ -5173,4 +5428,5 @@ expstack: ds 1
 
 
 
-pgmtext: ds 1
+basic: ds 1
+    end 0c000h

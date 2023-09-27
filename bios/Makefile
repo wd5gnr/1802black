@@ -108,11 +108,12 @@ xmodem.hex:	xmodem.asm config.inc bios.inc
 
 rcbasic.hex:	rcbasic.asm config.inc bios.inc
 	@echo Building rc/BASIC ...
-#	$(RCASM) $(RCASMOPTS) -DLEVEL=2 $< >$(@:.hex=.lst)
-	$(RM) -f temp.asm $@
-	$(CPP) -DSTGROM -DLEVEL=2 -Id:\\elf\\sw\\rcbasic\\ $< >temp.asm
-	$(RCASM) $(RCASMOPTS) temp.asm >$(@:.hex=.lst)
-	mv temp.hex $@
+##	$(RCASM) $(RCASMOPTS) -DLEVEL=2 $< >$(@:.hex=.lst)
+#	$(RM) -f temp.asm $@
+#	$(CPP) -DSTGROM -DELF2K -DLEVEL=2 -Id:\\elf\\sw\\rcbasic\\ $< >temp.asm
+#	$(RCASM) $(RCASMOPTS) temp.asm >$(@:.hex=.lst)
+#	mv temp.hex $@
+	$(ASM02) $(ASM02OPTS) $<
 
 visual02.hex:	visual02.asm config.inc bios.inc
 	@echo Building VISUAL/02 ...

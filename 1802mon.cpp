@@ -2,7 +2,6 @@
 #include "1802.h"
 #include "main.h"
 #if MONITOR == 1
-#include <Arduino.h>
 #include <EEPROM.h>
 #include <LittleFS.h>
 
@@ -28,7 +27,7 @@ M 400=
 : 20 30 40
 : 50 60 70;
 
-Backing up while entering 30 can only delete the 30 and not the 20. Also, instead of backing up you can just keep going 
+Backing up while entering 30 can only delete the 30 and not the 20. Also, instead of backing up you can just keep going
 as in:
 
 :M 400=
@@ -42,8 +41,8 @@ G 400 3 - Goto 400 with P=3
 B - List all enabled breakpoints
 B0 - - Disable Breakpoint 0 (that is a dash as in B0 -)
 BF @200 - Set breakpoint F to address 200
-BF P3 - Set breakpoint when P=3 
-BF I7A - Set breakpoint when instruction 7A executes 
+BF P3 - Set breakpoint when P=3
+BF I7A - Set breakpoint when instruction 7A executes
 
 Note would be possible to do data write (or even read) breakpoints
 Would also be possible to do ranges of addresses, if desired
@@ -67,27 +66,29 @@ Q - Same as C
 
 // one problem: The Blackpill serial port is terrible at dropping characters at high throughput
 // But we can't use the same delay trick here without rewriting every Serial.xxx call
-// So you will occasionally lose characters when flooding data from an M or R command, for example 
+// So you will occasionally lose characters when flooding data from an M or R command, for example
 
 static char cmdbuf[33];
 static int cb;
 
-
-static int cmd;        // command
-static uint16_t arg;   // one argument
-static int terminate;  // termination character
+static int cmd;       // command
+static uint16_t arg;  // one argument
+static int terminate; // termination character
 static int noread;
-
 
 int monactive = 0;
 
-int getch(void) {
+int getch(void)
+{
   int c;
   int ctr = 0;
-  do {
+  do
+  {
     c = Serialread();
-    if (c == -1) {
-      if (++ctr % DISPLAY_DIVISOR == 0) {
+    if (c == -1)
+    {
+      if (++ctr % DISPLAY_DIVISOR == 0)
+      {
         updateLEDdata();
         driveLEDs();
         scanKeys();
@@ -99,86 +100,109 @@ int getch(void) {
   return c;
 }
 
-
 // This skips leading blanks, makes all internal whitespace one space, and trims trailing blanks
 // This is very important since some of the parsing assumes there will be 0 or 1 space but no more
 // and no tabs etc.
 
-uint8_t readline(int *terminate) {
+uint8_t readline(int *terminate)
+{
   int c;
   cb = 0;
   cmdbuf[0] = '\0';
-  while (1) {
+  while (1)
+  {
     c = getch();
-    if (c == '\r') {
-      if (terminate) *terminate = '\r';
-      while (cb && cmdbuf[cb - 1] == ' ') cb--;
+    if (c == '\r')
+    {
+      if (terminate)
+        *terminate = '\r';
+      while (cb && cmdbuf[cb - 1] == ' ')
+        cb--;
       cmdbuf[cb] = '\0';
-      if (cb) cb = 1;
+      if (cb)
+        cb = 1;
       return *cmdbuf;
     }
-    if (c == 0x1b) {
+    if (c == 0x1b)
+    {
       cmdbuf[0] = '\0';
       cb = 0;
-      if (terminate) *terminate = 0x1b;
+      if (terminate)
+        *terminate = 0x1b;
       return '\0';
     }
-    if (c == 8 && cb != 0) {
+    if (c == 8 && cb != 0)
+    {
       cb--;
       continue;
     }
-    if (cb > sizeof(cmdbuf) - 2) {
-      Serial.print('\x7');  // sound bell
+    if (cb > sizeof(cmdbuf) - 2)
+    {
+      Serial.print('\x7'); // sound bell
       continue;
     }
 
-    if (isspace(c) && cb == 0) continue;
-    if (cb && isspace(c) && cmdbuf[cb - 1] == ' ') continue;
-    else if (isspace(c)) c = ' ';
+    if (isspace(c) && cb == 0)
+      continue;
+    if (cb && isspace(c) && cmdbuf[cb - 1] == ' ')
+      continue;
+    else if (isspace(c))
+      c = ' ';
     cmdbuf[cb++] = toupper(c);
   }
 }
 
-
-
-uint16_t readhexX(int (*getcfp)(void), int *term, uint16_t def = 0xFFFF) {
+uint16_t readhexX(int (*getcfp)(void), int *term, uint16_t def = 0xFFFF)
+{
   uint16_t val = def;
   int first = 1;
   int c;
 
-  while (1) {
+  while (1)
+  {
     c = getcfp();
-    if (!isxdigit(c) && c != 8) {
-      if (first && c != '\r' && c != ';' && c != 0x1b) continue;
-      if (term) *term = c;
+    if (!isxdigit(c) && c != 8)
+    {
+      if (first && c != '\r' && c != ';' && c != 0x1b)
+        continue;
+      if (term)
+        *term = c;
       noread = first;
       return val;
     }
-    if (c == 8) {
-      val >>= 4;  // in case of serial input
+    if (c == 8)
+    {
+      val >>= 4; // in case of serial input
       continue;
     }
     c = toupper(c);
-    if (first) val = 0;
-    else val <<= 4;
+    if (first)
+      val = 0;
+    else
+      val <<= 4;
     first = 0;
-    if (c >= 'A') c = c - 'A' + 10;
-    else c -= '0';
+    if (c >= 'A')
+      c = c - 'A' + 10;
+    else
+      c -= '0';
     val += c;
   }
 }
 
-uint16_t readhex(int *term, uint16_t def = 0xFFFF) {
+uint16_t readhex(int *term, uint16_t def = 0xFFFF)
+{
   return readhexX(getch, term, def);
 }
 
-int getbufc(void) {
-  if (cmdbuf[cb] == '\0') return '\r';
+int getbufc(void)
+{
+  if (cmdbuf[cb] == '\0')
+    return '\r';
   return cmdbuf[cb++];
 }
 
-
-uint16_t readhexbuf(int *term, uint16_t def = 0xFFFF) {
+uint16_t readhexbuf(int *term, uint16_t def = 0xFFFF)
+{
   return readhexX(getbufc, term, def);
 }
 
@@ -194,136 +218,148 @@ void diskmon(void)
 {
   char diskcmd[128];
   if (diskinit)
-    LittleFS.end(); 
+    LittleFS.end();
   Serial.printf("Init %d\r\n", LittleFS.begin());
   diskinit = 1;
   while (1)
   {
     Serial.println(F("Host disk menu (arguments in hex)"));
-   Serial.println(F("S - set max 'track' count: S [max#]\r\n"
-      "D - Directory\r\n"
-      "F - Format (will ask for confirmation)\r\n"
-      "R - read sectors from 1st 'track': R [sector] [count]\r\n"
-      "X - eXit"));
+    Serial.println(F("S - set max 'track' count: S [max#]\r\n"
+                     "D - Directory\r\n"
+                     "F - Format (will ask for confirmation)\r\n"
+                     "R - read sectors from 1st 'track': R [sector] [count]\r\n"
+                     "X - eXit"));
     int n = readline(NULL);
-    n=toupper(n);
+    n = toupper(n);
     switch (n)
     {
-      case 'X':
-        diskinit = false;
-        LittleFS.end();
-        diskinit = 0;
-        return;
-      case 'R':
+    case 'X':
+      diskinit = false;
+      LittleFS.end();
+      diskinit = 0;
+      return;
+    case 'R':
+    {
+      int n1, n2;
+      n1 = readhexbuf(NULL, 0);
+      n1 *= 512;
+      n2 = readhexbuf(NULL, 1);
+      File f = LittleFS.open("/ide00A.dsk", "r");
+      if (!f)
       {
-        int n1, n2;
-        n1 = readhexbuf(NULL, 0);
-        n1 *= 512;
-        n2 = readhexbuf(NULL, 1);
-        File f = LittleFS.open("/ide00A.dsk", "r");
-        if (!f)
-        {
-          Serial.println("Faled open\r\n");
-          break;
-        }
-        Serial.printf("Opened /ide0.dsk\r\n");
-        Serial.printf("Seeking %d %d\r\n", n1, f.seek(n1, SeekSet));
-        uint8_t sector[512];
-        int i;
-        for (i = 0; i < n2; i++)
-        {
-          Serial.printf("\r\nRead: %d\r\n", f.read(sector, sizeof(sector)));
-          for (int j = 0; j < 512; j++)
-          {
-            Serial.printf("%02x ", sector[j]);
-          }
-          Serial.println();
-          }
-          f.close();
+        Serial.println("Faled open\r\n");
+        break;
       }
-        break;
-        case 'F':
-        if (diskcfm())
-          Serial.println(LittleFS.format());
-        break;
-
-      case 'D':
+      Serial.printf("Opened /ide0.dsk\r\n");
+      Serial.printf("Seeking %d %d\r\n", n1, f.seek(n1, SeekSet));
+      uint8_t sector[512];
+      int i;
+      for (i = 0; i < n2; i++)
+      {
+        Serial.printf("\r\nRead: %d\r\n", f.read(sector, sizeof(sector)));
+        for (int j = 0; j < 512; j++)
         {
-        Dir dir = LittleFS.openDir("/");
-        while (dir.next())
-          Serial.println(dir.fileName());
+          Serial.printf("%02x ", sector[j]);
         }
-        break;
-      case 'S':
-        {
-          int n;
-          EEPROM.write(MAXCYLEE, EEPROMSIG);
-          EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
-          Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
-          break;
-        }
-
-      default:
-        Serial.println("?");
+        Serial.println();
       }
+      f.close();
+    }
+    break;
+    case 'F':
+      if (diskcfm())
+        Serial.println(LittleFS.format());
+      break;
+
+    case 'D':
+    {
+      Dir dir = LittleFS.openDir("/");
+      while (dir.next())
+        Serial.println(dir.fileName());
+    }
+    break;
+    case 'S':
+    {
+      int n;
+      EEPROM.write(MAXCYLEE, EEPROMSIG);
+      EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
+      Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
+      break;
+    }
+
+    default:
+      Serial.println("?");
+    }
   }
 }
 
-
 BP bp[16];
 
-void dispbp(int bpn) {
+void dispbp(int bpn)
+{
   Serial.print(F("\r\nBP"));
   Serial.print(bpn, HEX);
   Serial.print(F(": "));
-  if (bp[bpn].type == 1) Serial.print(F("@"));
-  if (bp[bpn].type == 2) Serial.print(F("P"));
-  if (bp[bpn].type == 3) Serial.print(F("I"));
-  if (bp[bpn].type == 0) Serial.print(F(" DISABLED"));
-  else print4hex(bp[bpn].target);
+  if (bp[bpn].type == 1)
+    Serial.print(F("@"));
+  if (bp[bpn].type == 2)
+    Serial.print(F("P"));
+  if (bp[bpn].type == 3)
+    Serial.print(F("I"));
+  if (bp[bpn].type == 0)
+    Serial.print(F(" DISABLED"));
+  else
+    print4hex(bp[bpn].target);
 }
-
 
 int nobreak;
 
-void mon_status(void) {
-  print4hex(reg[p]);
-  Serial.print(F(": "));
-  print2hex(memread(reg[p]));
-  Serial.print(F(" D="));
+void mon_status(void)
+{
+//  print4hex(reg[p]);
+//  Serial.print(F(": "));
+  disasmline(reg[p],0);      
+//  print2hex(memread(reg[p]));
+  Serial.print(F("\tD="));
   print2hex(d);
   Serial.println();
 }
 
-
-
 bool enterMonitor(void)
 {
-  static int throttle = 0;   // the BOOT button is slow so we throttle and only check every 256 instructions
+  static int throttle = 0; // the BOOT button is slow so we throttle and only check every 256 instructions
   if (monactive)
     return true;
-#if MONITORPIN>=0
+#if MONITORPIN >= 0
   return digitalRead(MONITORPIN) == 0;
 #else
-  if (++throttle<256)
+  if (++throttle < 256)
     return false;
   throttle = 0;
   return get_bootsel_button();
-#endif  
+#endif
 }
 
-
-int mon_checkbp(void) {
+int mon_checkbp(void)
+{
   int i;
   int mon = enterMonitor();
-  if (nobreak&&!mon) return 1;
-  if (!nobreak) for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i++) {
-    if (bp[i].type == 0) continue;
-    else if (bp[i].type == 1 && bp[i].target == reg[p]) mon = 1;
-    else if (bp[i].type == 2 && bp[i].target == p) mon = 1;
-    else if (bp[i].type == 3 && bp[i].target == memread(reg[p])) mon = 1;
-  }
-  if (mon) {
+  if (nobreak && !mon)
+    return 1;
+  if (!nobreak)
+    for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i++)
+    {
+      if (bp[i].type == 0)
+        continue;
+      else if (bp[i].type == 1 && bp[i].target == reg[p])
+        mon = 1;
+      else if (bp[i].type == 2 && bp[i].target == p)
+        mon = 1;
+      else if (bp[i].type == 3 && bp[i].target == memread(reg[p]))
+        mon = 1;
+    }
+  if (mon)
+  {
     Serial.println(F("\nBreak"));
     mon_status();
     return monitor();
@@ -346,20 +382,26 @@ static void adump(unsigned a)
   }
 }
 
-int monitor(void) {
+int monitor(void)
+{
   int noarg;
   monactive = 1;
-  while (1) {
+  while (1)
+  {
     Serial.print(F("\r\n>"));
     cmd = readline(&terminate);
-    if (terminate == 0x1b) continue;
-    if (!strchr("RMGBIOXQCN&?.`", cmd)) {
+    if (terminate == 0x1b)
+      continue;
+    if (!strchr("DRMGBIOXQCN&?.`", cmd))
+    {
       Serial.print('?');
       continue;
     }
     noarg = 0;
-    if (cmdbuf[cb]) arg = readhexbuf(&terminate);
-    else noarg = 1;
+    if (cmdbuf[cb])
+      arg = readhexbuf(&terminate);
+    else
+      noarg = 1;
     switch (cmd)
     {
     case '.':
@@ -369,8 +411,8 @@ int monitor(void) {
 
     case '&':
     {
-       int y, m, d, h, n, s;
-       RTCGetAll(y, m, d, h, n, s);
+      int y, m, d, h, n, s;
+      RTCGetAll(y, m, d, h, n, s);
 
       if (noarg)
       {
@@ -385,17 +427,40 @@ int monitor(void) {
           Serial.printf("Did not set %s\r\n", cmdbuf + cb);
       }
     }
-      break;
+    break;
     case '?':
-      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it, <Q>uit,"
-      " <C>ontinue, .cccc (send characters to front panel; no space after .)"));
-      Serial.println(F("<&>time  <`>Disk menu\r\n"));
-      Serial.print(F("Examples: R   RB   RB=2F00   M 100 10    M 100=<CR>AA 55 22;    B 0 @101   .44$$"));
+      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
+      Serial.println(F("<Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .)"));
+      Serial.println(F("<D>isassemble <&> time<`> Disk menu\r\n "));
+      Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
+      Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
+      Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
       break;
 
     case '`':
       diskmon();
       break;
+
+    case 'D':
+    {
+      unsigned arg2 = 0;
+      unsigned limit;
+      if (noarg)
+      {
+        Serial.println(F("Usage: D address [length]"));
+        break;
+      }
+      Serial.println();
+      if (terminate != '\r')
+        arg2 = readhexbuf(&terminate, 0);
+      if (arg2 == 0)
+        arg2 = 0x100;
+      limit = (arg + arg2) - 1;
+      if (limit < arg)
+        limit = 0xFFFF; // wrapped around!
+      disasm1802(arg, limit);
+    }
+    break;
 
     case 'N':
       nobreak = 1;
@@ -602,87 +667,118 @@ int monitor(void) {
       runstate = 0;
       monactive = 0;
       return 0;
-        }
-      case 'C':
-      case 'X': monactive = 0; return 1;
-      case 'I':
-        print2hex(input(arg));
-        break;
+    }
+    case 'C':
+    case 'X':
+      monactive = 0;
+      return 1;
+    case 'I':
+      print2hex(input(arg));
+      break;
 
-      case 'O':
+    case 'O':
+    {
+      uint8_t v = readhexbuf(&terminate);
+      output(arg, v);
+      break;
+    }
+
+    case 'G':
+    {
+      if (terminate != '\r')
+        p = readhexbuf(&terminate);
+      reg[p] = arg;
+      runstate = 1;
+      monactive = 0;
+      return 0;
+    }
+
+    case 'M':
+    {
+      uint16_t arg2 = 0;
+      if (terminate == '=')
+      {
+        uint8_t d;
+        while (cmdbuf[cb] != 0)
         {
-          uint8_t v = readhexbuf(&terminate);
-          output(arg, v);
+          d = readhexbuf(&terminate, 0);
+          if (noread == 0)
+            memwrite(arg++, d);
+          if (terminate == ';')
+            break;
+        }
+        if (terminate == ';')
           break;
-        }
-
-      case 'G':
+        do
         {
-
-          if (terminate != '\r') p = readhexbuf(&terminate);
-          reg[p] = arg;
-          runstate = 1;
-          monactive = 0;
-          return 0;
-        }
-
-      case 'M':
-        {
-          uint16_t arg2 = 0;
-          if (terminate == '=') {
-            uint8_t d;
-            while (cmdbuf[cb] != 0) {
-              d = readhexbuf(&terminate, 0);
-              if (noread == 0) memwrite(arg++, d);
-              if (terminate == ';') break;
-            }
-            if (terminate == ';') break;
-            do {
-              if (terminate == '\r' || terminate == '=') {
-                Serial.print('\n');
-                print4hex(arg);
-                Serial.print(F(": "));
-              }
-              d = readhex(&terminate, 0);
-              if (terminate != ';' || noread == 0)
-                memwrite(arg++, d);
-            } while (terminate != ';');
-          } else {
-            uint16_t i, limit;
-            unsigned ct = 16;
-            if (terminate != '\r') arg2 = readhexbuf(&terminate, 0);
-            if (arg2 == 0) arg2 = 0x100;
-            limit = (arg + arg2) - 1;
-            if (limit < arg) limit = 0xFFFF;  // wrapped around!
-            Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
-            for (i = arg; i <= limit; i++)
-            {
-              if (ct % 16 == 0) {
-                if (ct!=16) adump(i - 16);
-                Serial.println();
-                print4hex(i);
-                Serial.print(F(": "));
-              } else if (ct % 8 == 0) Serial.print(' ');
-              ct++;
-
-              print2hex(memread(i));
-              Serial.print(' ');
-              if (i == 0xFFFF) break;  // hit limit
-              if (Serialread() == 0x1b) break;
-            }
-            adump(i - 16);
+          if (terminate == '\r' || terminate == '=')
+          {
+            Serial.print('\n');
+            print4hex(arg);
+            Serial.print(F(": "));
           }
-        }
-        break;
-
-
-      default:
-        Serial.print((char)cmd);
-        Serial.println(F("?"));
+          d = readhex(&terminate, 0);
+          if (terminate != ';' || noread == 0)
+            memwrite(arg++, d);
+        } while (terminate != ';');
       }
+      else
+      {
+        uint16_t i, limit;
+        unsigned ct = 16;
+        if (terminate != '\r')
+          arg2 = readhexbuf(&terminate, 0);
+        if (arg2 == 0)
+          arg2 = 0x100;
+
+
+        // normalize
+        i = arg & 0xF;  // how much off are we?
+        arg &= 0xFFF0;
+        arg2 += i;
+        if (arg2 & 0xF)
+        {
+          arg2 &= 0xFFF0;
+          arg2 += 0x10;  // make sure we have a multiple of 16
+        }
+
+        limit = (arg + arg2) - 1;
+        if (limit < arg)
+          limit = 0xFFFF; // wrapped around!
+
+
+        Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
+        for (i = arg; i <= limit; i++)
+        {
+          if (ct % 16 == 0)
+          {
+            if (ct != 16)
+              adump(i - 16);
+            Serial.println();
+            print4hex(i);
+            Serial.print(F(": "));
+          }
+          else if (ct % 8 == 0)
+            Serial.print(' ');
+          ct++;
+
+          print2hex(memread(i));
+          Serial.print(' ');
+          if (i == 0xFFFF)
+            break; // hit limit
+          if (Serialread() == 0x1b)
+            break;
+        }
+        adump(i - 16);
+      }
+    }
+    break;
+
+    default:
+      Serial.print((char)cmd);
+      Serial.println(F("?"));
+    }
   }
 }
-
-
 
 #endif

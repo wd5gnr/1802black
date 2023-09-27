@@ -13,13 +13,16 @@ int tracemode = 0;
 uint8_t ef4term = 0;
 
 // Properly print two hex digits
-void print2hex(uint8_t v) {
-  if (v < 0x10) Serial.print('0');
+void print2hex(uint8_t v, int tab) {
+  if (tab)
+    Serial.print('\t');
+  if (v < 0x10)
+    Serial.print('0');
   Serial.print(v, HEX);
 }
 
-void print4hex(uint16_t v) {
-  print2hex(v >> 8);
+void print4hex(uint16_t v, int tab) {
+  print2hex(v >> 8,tab);
   print2hex(v);
 }
 
