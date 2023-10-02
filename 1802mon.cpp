@@ -66,9 +66,7 @@ Q - Same as C
 
 */
 
-// one problem: The Blackpill serial port is terrible at dropping characters at high throughput
-// But we can't use the same delay trick here without rewriting every Serial.xxx call
-// So you will occasionally lose characters when flooding data from an M or R command, for example
+#include <cstdlib>  //  need exit
 
 static char cmdbuf[33];
 static int cb;
@@ -214,7 +212,7 @@ uint16_t readhexbuf(int *term, uint16_t def = 0xFFFF)
 
 int diskcfm(void)
 {
-  printf("\r\nY to continue: \r\n");
+  printf("\r\nY to proceed, N to abort? \r\n");
   int n = getch();
   return (n == 'y' || n == 'Y');
 }
@@ -391,7 +389,7 @@ int monitor(void)
     cmd = readline(&terminate);
     if (terminate == 0x1b)
       continue;
-    if (!strchr("DRMGBIOXQCN&?.`", cmd))
+    if (!strchr("$DRMGBIOXQCN&?.`", cmd))
     {
       putchar('?');
       continue;
@@ -408,6 +406,10 @@ int monitor(void)
         exec1802(*cp);
       break;
 
+    case '$':
+      if (diskcfm()) exit(0);
+      break;
+
     case '&':
     {
       int y, m, d, h, n, s;
@@ -417,7 +419,7 @@ int monitor(void)
     case '?':
       printf(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it\r\n"));
       printf(F("<Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .\r\n)"));
-      printf(F("<D>isassemble <&> time<`> Disk menu\r\n "));
+      printf(F("<D>isassemble <$>exit to OS <&> time<`> Disk menu\r\n "));
       printf(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)\r\n"));
       printf(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)\r\n"));
       printf(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)\r\n"));
