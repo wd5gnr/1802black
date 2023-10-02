@@ -62,6 +62,9 @@ bool get_bootsel_button(void);
 void disasm1802(unsigned start, unsigned stop);
 unsigned disasmline(unsigned mp, int nl=1);
 
+extern const char *eedata;
+extern const char *drivepfx;
+
 #endif
 
 

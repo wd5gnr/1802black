@@ -16,6 +16,7 @@ f809 - Send char
 
 #include <cstdio>
 #include <ctime>
+#include "main.h"
 
 #define F_UTYPE 0xF809
 #define F_UREAD 0xF80C
@@ -145,7 +146,7 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
       {
         int subtrack = (s & 0xC0) >> 6;
         char subname[] = "ABCD";
-        sprintf(fname, "./disk/ide%02x%c.dsk", c,subname[subtrack]);
+        sprintf(fname, "%s/ide%02x%c.dsk",drivepfx, c,subname[subtrack]);
         if (currentcy != 0xFFFF)
         {
           fclose(fide);
@@ -345,9 +346,7 @@ int bios(uint16_t fn)
     break;
 
   case F_UTEST: // key avail?
-  //  df = Serial.available() ? 1 : 0;
-  // for now
-  df = 0;
+  df = kbhit() ? 1 : 0;
   p = 5;
   break;
 
@@ -379,7 +378,7 @@ int bios(uint16_t fn)
         c = 0;
         df = 1;
       }
-      if (c == 8 || c == 0xFF)
+      if (c == 8 || c == 0xFF || c==0x7F)
       {
         if (n)
         {

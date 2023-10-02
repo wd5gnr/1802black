@@ -228,9 +228,7 @@ void diskmon(void)
   {
     printf(F("Host disk menu (arguments in hex)\r\n"));
     printf(F("S - set max 'track' count: S [max#]\r\n"
-                     "D - Directory\r\n"
-                     "F - Format (will ask for confirmation)\r\n"
-                     "R - read sectors from 1st 'track': R [sector] [count]\r\n"
+                     "F - Format (not required on 1802PC)\r\n"
                      "X - eXit\r\n"));
     int n = readline(NULL);
     n = toupper(n);
@@ -240,33 +238,6 @@ void diskmon(void)
       diskinit = false;
       diskinit = 0;
       return;
-    case 'R':
-    {
-      int n1, n2;
-      n1 = readhexbuf(NULL, 0);
-      n1 *= 512;
-      n2 = readhexbuf(NULL, 1);
-      FILE * f = fopen("./disk/ide00A.dsk", "r");
-      if (!f)
-      {
-        printf("Failed open\r\n");
-        break;
-      }
-      printf("Seeking %d %d\r\n", n1, fseek(f,n1, SEEK_SET));
-      uint8_t sector[512];
-      int i;
-      for (i = 0; i < n2; i++)
-      {
-        printf("\r\nRead: %ld\r\n", fread(sector,sizeof(sector), 1,f));
-        for (int j = 0; j < 512; j++)
-        {
-          printf("%02x ", sector[j]);
-        }
-        printf("\r\n"); 
-      }
-      fclose(f);
-    }
-    break;
     case 'F':
       if (diskcfm())
         printf("Format not required\r\n");

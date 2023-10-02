@@ -47,8 +47,8 @@ int getch()
     }
     else
     {
-        if (c==0x7f)  // backspace
-            c = 8;
+ //       if (c==0x7f)  // backspace
+ //           c = 8;
         return c;
     }
 }

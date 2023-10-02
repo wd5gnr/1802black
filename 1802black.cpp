@@ -14,6 +14,8 @@
 
 #include "main.h"
 #include "1802.h"
+#include "pceeprom.h"
+
 
 #define VERSION "1802PCv1"
 
@@ -22,6 +24,9 @@
 uint8_t curkey = 0;
 
 int autostart = 1;
+unsigned speed=0;
+const char *eedata = "./eedata.dat";
+const char *drivepfx = "./drive/";
 
 void serputc(int c)
 {
@@ -78,28 +83,33 @@ int Serialread(int echo)
   return curkey;
 }
 
-#include <sys/ioctl.h>
 int serial_avail()
 {
   return kbhit();
 }
+#include <unistd.h>
 
 // main loop
 void loop()
 {
+  unsigned dloop;
   if (noserial == 0 && serial_avail()) // if serial input, process that
   {
     curkey = getchar();
     if (curkey == SERIAL_ESCAPE)
        noserial = 1; // one way ticket
     else
-      exec1802(curkey);
+        exec1802(curkey);
     curkey = 0;
   }
-  exec1802(0);
+  else 
+    exec1802(0);
   tick++;
+  for (dloop = 0; dloop < speed; dloop++)
+  {
+    kbhit();  // kill a little time doing something harmless
+  }
 }
-
 
 // =================================================================================================
 // KIM Uno Board functions are bolted on from here
@@ -114,20 +124,32 @@ void setupUno()
 #include <fcntl.h>
 #include <unistd.h>
 
+_EEPROM EEPROM;
+
 int main(int argc, char *argv[])
 {
   int c;
-  while ((c = getopt(argc,argv,"ar:p?"))!=-1)
+  while ((c = getopt(argc,argv,"ar:ps:d:e:?"))!=-1)
   {
     switch(c)
     {
       case 'a':
         autostart = 0;
         break;
+      case 's':
+        speed = atoi(optarg);
+        break;
       case 'r':
         romsel = atoi(optarg);
         break;
-      case 'p':  
+      case 'd':
+        drivepfx = strdup(optarg);
+        break;
+      case 'e':
+        eedata = strdup(optarg);
+        break;
+
+      case 'p':
       {
       int mainfd, termfd;
       char *termdev;
@@ -155,11 +177,19 @@ int main(int argc, char *argv[])
         dup2(mainfd, STDOUT_FILENO);
       }
           case '?':
-        printf("Help goes here\r\n");
-        break;
+            printf("Usage: 1802pc [-a] [-p] [-e eefile] [-d disk_prefix] [-r rom#] [-s delay]\r\n"
+                   "    -a - Do not auto start\r\n"
+                   "    -p - Use pty for console\r\n"
+                   "    -e - Use eefile as EEPROM data\r\n"
+                   "    -d - Use directory for disk drive files\r\n"
+                   "    -r - Use ROM # specified (default 0)\r\n"
+                   "    -s - Delay between instructions (unitless; default=0)\r\n"
+            );
+            break;
       }
   }
-    setup();
+  EEPROM.init(eedata);
+  setup();
   while (1)
     loop();
 }
@@ -167,7 +197,7 @@ void setaddress(unsigned short) {}
 void setdata(unsigned char) {}
 void setdp(int, int) {}
 
-#include "pceeprom.h"
+
 
 void NVM_PutChecksum(uint16_t csum)
 {

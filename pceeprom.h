@@ -10,7 +10,7 @@ class _EEPROM
         FILE *fp;
 
     public:
-        _EEPROM(const char *eename="eeprom.dat");
+        int init(const char *eename="eeprom.dat");
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t byte);
         void commit(void);

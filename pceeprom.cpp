@@ -1,18 +1,22 @@
 #include "pceeprom.h"
 
-_EEPROM EEPROM;
 
-_EEPROM::_EEPROM(const char *eename)
+
+int _EEPROM::init(const char *eename)
 {
     fp = fopen(eename, "r+");
     if (!fp)
     {
         fp=fopen(eename, "w+");
-        for (int i = 0; i < 512;i++)
+        if (fp) for (int i = 0; i < 512;i++)
             putc(0xFF, fp);
     }
     if (!fp)
+    {
         printf("ERROR: EEPROM File can't open\n");
+        return 1;
+    }
+    return 0;
 }
 
 uint8_t _EEPROM::read(uint16_t address)
