@@ -5,23 +5,8 @@ See: <http://obsolescence.wixsite.com/obsolescence/kim-uno-summary-c1uuh> for mo
 
 What's New
 ===
-This is the RP PICO version. Arduino IDE Settings: 
-"flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default"
+This is the Linux version (pre-alpha). 
 
-The binaries directory has UF2 files for a 2M standard Pico and a 16M clone.
-
-Big update allows you to use some flash (have to change the Arduinio settings above) as a disk drive to boot/use ElfOS). See ElfOs.md for more details.
-
-If you use the regular IDE, you may have to move the .ino, .cpp, and .h files to a new directory. For some reason, platform IO and vscode upset the IDE
-
-NOTE: This is eventually going to be the main branch and the Blackpill version will be more or less frozen
-
-v2:
-* Updated: Removed platformio! The USB serial port was unreliable in subtle ways when pushing a lot of data. With the Arduino library it seems fine. Rather than troubleshoot it...
-* Moved back to platformio. Should still build with Arduino IDE. Note: when using pio, leaving DFU mode doesn't work. You must turn off the bootloader and reset to run code. Not sure why.
-
-v1:
-* Blackpill target
 
 
 
