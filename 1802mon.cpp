@@ -1,9 +1,11 @@
-#include <Arduino.h>
+
 #include "1802.h"
 #include "main.h"
 #if MONITOR == 1
-#include <EEPROM.h>
-#include <LittleFS.h>
+#include <cstdio>
+#include <cctype>
+#include <cstring>
+#include "pceeprom.h"
 
 /*
 Commands:
@@ -77,7 +79,7 @@ static int terminate; // termination character
 static int noread;
 
 int monactive = 0;
-
+#if 0
 int getch(void)
 {
   int c;
@@ -87,6 +89,7 @@ int getch(void)
     c = Serialread();
     if (c == -1)
     {
+ #if 0
       if (++ctr % DISPLAY_DIVISOR == 0)
       {
         updateLEDdata();
@@ -94,11 +97,13 @@ int getch(void)
         scanKeys();
         ctr = 0;
       }
+#endif     
     }
 
   } while (c == -1);
   return c;
 }
+#endif
 
 // This skips leading blanks, makes all internal whitespace one space, and trims trailing blanks
 // This is very important since some of the parsing assumes there will be 0 or 1 space but no more
@@ -112,6 +117,7 @@ uint8_t readline(int *terminate)
   while (1)
   {
     c = getch();
+    putchar(c);
     if (c == '\r')
     {
       if (terminate)
@@ -138,7 +144,7 @@ uint8_t readline(int *terminate)
     }
     if (cb > sizeof(cmdbuf) - 2)
     {
-      Serial.print('\x7'); // sound bell
+      putchar('\x7');
       continue;
     }
 
@@ -208,7 +214,7 @@ uint16_t readhexbuf(int *term, uint16_t def = 0xFFFF)
 
 int diskcfm(void)
 {
-  Serial.println("\r\nY to continue: ");
+  printf("\r\nY to continue: \r\n");
   int n = getch();
   return (n == 'y' || n == 'Y');
 }
@@ -217,25 +223,23 @@ int diskcfm(void)
 void diskmon(void)
 {
   char diskcmd[128];
-  if (diskinit)
-    LittleFS.end();
-  Serial.printf("Init %d\r\n", LittleFS.begin());
+
+ 
   diskinit = 1;
   while (1)
   {
-    Serial.println(F("Host disk menu (arguments in hex)"));
-    Serial.println(F("S - set max 'track' count: S [max#]\r\n"
+    printf(F("Host disk menu (arguments in hex)\r\n"));
+    printf(F("S - set max 'track' count: S [max#]\r\n"
                      "D - Directory\r\n"
                      "F - Format (will ask for confirmation)\r\n"
                      "R - read sectors from 1st 'track': R [sector] [count]\r\n"
-                     "X - eXit"));
+                     "X - eXit\r\n"));
     int n = readline(NULL);
     n = toupper(n);
     switch (n)
     {
     case 'X':
       diskinit = false;
-      LittleFS.end();
       diskinit = 0;
       return;
     case 'R':
@@ -244,38 +248,35 @@ void diskmon(void)
       n1 = readhexbuf(NULL, 0);
       n1 *= 512;
       n2 = readhexbuf(NULL, 1);
-      File f = LittleFS.open("/ide00A.dsk", "r");
+      FILE * f = fopen("./disk/ide00A.dsk", "r");
       if (!f)
       {
-        Serial.println("Faled open\r\n");
+        printf("Failed open\r\n");
         break;
       }
-      Serial.printf("Opened /ide0.dsk\r\n");
-      Serial.printf("Seeking %d %d\r\n", n1, f.seek(n1, SeekSet));
+      printf("Seeking %d %d\r\n", n1, fseek(f,n1, SEEK_SET));
       uint8_t sector[512];
       int i;
       for (i = 0; i < n2; i++)
       {
-        Serial.printf("\r\nRead: %d\r\n", f.read(sector, sizeof(sector)));
+        printf("\r\nRead: %ld\r\n", fread(sector,sizeof(sector), 1,f));
         for (int j = 0; j < 512; j++)
         {
-          Serial.printf("%02x ", sector[j]);
+          printf("%02x ", sector[j]);
         }
-        Serial.println();
+        printf("\r\n"); 
       }
-      f.close();
+      fclose(f);
     }
     break;
     case 'F':
       if (diskcfm())
-        Serial.println(LittleFS.format());
+        printf("Format not required\r\n");
       break;
 
     case 'D':
     {
-      Dir dir = LittleFS.openDir("/");
-      while (dir.next())
-        Serial.println(dir.fileName());
+      printf("Not available on 1802PC\r\n");
     }
     break;
     case 'S':
@@ -283,12 +284,12 @@ void diskmon(void)
       int n;
       EEPROM.write(MAXCYLEE, EEPROMSIG);
       EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
-      Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
+      printf("Set max cylinder to %d (0x%x)\r\n", n, n);
       break;
     }
 
     default:
-      Serial.println("?");
+      printf("?\r\n");
     }
   }
 }
@@ -297,17 +298,15 @@ BP bp[16];
 
 void dispbp(int bpn)
 {
-  Serial.print(F("\r\nBP"));
-  Serial.print(bpn, HEX);
-  Serial.print(F(": "));
+  printf(F("\r\nBP %X: "),bpn);
   if (bp[bpn].type == 1)
-    Serial.print(F("@"));
+    putchar('@');
   if (bp[bpn].type == 2)
-    Serial.print(F("P"));
+    putchar('P');
   if (bp[bpn].type == 3)
-    Serial.print(F("I"));
+    putchar('I');
   if (bp[bpn].type == 0)
-    Serial.print(F(" DISABLED"));
+    printf("Disabled");
   else
     print4hex(bp[bpn].target);
 }
@@ -320,9 +319,8 @@ void mon_status(void)
 //  Serial.print(F(": "));
   disasmline(reg[p],0);      
 //  print2hex(memread(reg[p]));
-  Serial.print(F("\tD="));
-  print2hex(d);
-  Serial.println();
+  printf(F("\tD=%02X\r\n"),d);
+
 }
 
 bool enterMonitor(void)
@@ -331,7 +329,8 @@ bool enterMonitor(void)
   if (monactive)
     return true;
 #if MONITORPIN >= 0
-  return digitalRead(MONITORPIN) == 0;
+ // return digitalRead(MONITORPIN) == 0;
+  return 0;
 #else
   if (++throttle < 256)
     return false;
@@ -360,7 +359,7 @@ int mon_checkbp(void)
     }
   if (mon)
   {
-    Serial.println(F("\nBreak"));
+    printf("\r\nBreak\r\n");
     mon_status();
     return monitor();
   }
@@ -371,14 +370,14 @@ int mon_checkbp(void)
 static void adump(unsigned a)
 {
   int z;
-  Serial.print(F("  "));
+  printf(F("  "));
   for (z = 0; z < 16; z++)
   {
     char b = memread(a + z);
     if (b >= ' ')
-      Serial.print(b);
+      putchar(b);
     else
-      Serial.print('.');
+      putchar('.');
   }
 }
 
@@ -388,13 +387,13 @@ int monitor(void)
   monactive = 1;
   while (1)
   {
-    Serial.print(F("\r\n>"));
+    printf(F("\r\n>"));
     cmd = readline(&terminate);
     if (terminate == 0x1b)
       continue;
     if (!strchr("DRMGBIOXQCN&?.`", cmd))
     {
-      Serial.print('?');
+      putchar('?');
       continue;
     }
     noarg = 0;
@@ -412,29 +411,16 @@ int monitor(void)
     case '&':
     {
       int y, m, d, h, n, s;
-      RTCGetAll(y, m, d, h, n, s);
-
-      if (noarg)
-      {
-        // display time
-        Serial.printf("%4d-%02d-%02d  %02d:%02d:%02d\r\n", y, m, d, h, n, s);
-      }
-      else
-      {
-        if (sscanf(cmdbuf + 1, "%d-%d-%d %d:%d:%d", &y, &m, &d, &h, &n, &s) > 0)
-          RTCSet(y, m, d, h, n, s);
-        else
-          Serial.printf("Did not set %s\r\n", cmdbuf + cb);
-      }
+      printf("This command not available on 1802PC\r\n");
     }
     break;
     case '?':
-      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
-      Serial.println(F("<Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .)"));
-      Serial.println(F("<D>isassemble <&> time<`> Disk menu\r\n "));
-      Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
-      Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
-      Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
+      printf(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it\r\n"));
+      printf(F("<Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .\r\n)"));
+      printf(F("<D>isassemble <&> time<`> Disk menu\r\n "));
+      printf(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)\r\n"));
+      printf(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)\r\n"));
+      printf(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)\r\n"));
       break;
 
     case '`':
@@ -447,10 +433,10 @@ int monitor(void)
       unsigned limit;
       if (noarg)
       {
-        Serial.println(F("Usage: D address [length]"));
+        printf(F("Usage: D address [length]]\r\n"));
         break;
       }
-      Serial.println();
+      printf("\r\n");
       if (terminate != '\r')
         arg2 = readhexbuf(&terminate, 0);
       if (arg2 == 0)
@@ -522,42 +508,25 @@ int monitor(void)
         int i;
         for (i = 0; i <= 15; i += 4)
         {
-          Serial.print(F("R"));
-          Serial.print(i, HEX);
-          Serial.print(':');
+          printf("R%X:", i);
           print4hex(reg[i]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 1, HEX);
-          Serial.print(':');
+          printf(F("\tR%X:"),i+1);
           print4hex(reg[i + 1]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 2, HEX);
-          Serial.print(':');
+          printf("\tR%X:", i + 2);
           print4hex(reg[i + 2]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 3, HEX);
-          Serial.print(':');
+          printf(F("\tR%X:"),i+3);
           print4hex(reg[i + 3]);
-          Serial.println();
+          printf("\r\n");
         }
-        Serial.print(F("(10) X:"));
-        Serial.print(x, HEX);
-        Serial.print(F("\t(11) P:"));
-        Serial.println(p, HEX);
-        Serial.print(F("(12) D:"));
-        print2hex(d);
-        Serial.print(F("\t(13) DF:"));
-        Serial.println(df, HEX);
-        Serial.print(F("(14) Q:"));
-        Serial.print(q, HEX);
-        Serial.print(F("\t(15) T:"));
-        Serial.print(t, HEX);
+        printf(F("(10) X: %X\t(11) P:%X\r\n"),x,p);
+        printf(F("(12) D: %X\t(13) DF:%X\r\n"),d,df);
+        printf("(14) Q:%X\t(15) T:%X\r\n", q, t);
       }
       else
       {
         if (terminate != '=')
-          Serial.print(F("R"));
-        if (arg <= 0xF)
+          printf("R");
+         if (arg <= 0xF)
         {
           if (terminate == '=')
           {
@@ -566,9 +535,7 @@ int monitor(void)
           }
           else
           {
-            Serial.print(arg, HEX);
-            Serial.print(':');
-            print4hex(reg[arg]);
+            printf("%X:%04X", arg, reg[arg]);
           }
         }
         else
@@ -583,8 +550,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("X:"));
-              Serial.print(x, HEX);
+              printf("X:%X", x);
             }
 
             break;
@@ -597,8 +563,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("P:"));
-              Serial.print(p, HEX);
+              printf("P:%X", p);;
             }
 
             break;
@@ -611,8 +576,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("D:"));
-              Serial.print(d, HEX);
+              printf("D:%02X", d);
             }
 
             break;
@@ -625,8 +589,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("DF:"));
-              Serial.print(df, HEX);
+              printf("DF:%X", df);
             }
 
             break;
@@ -639,8 +602,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("Q:"));
-              Serial.print(q, HEX);
+              printf("Q:%X", q);
             }
 
           case 0x15:
@@ -651,8 +613,7 @@ int monitor(void)
             }
             else
             {
-              Serial.print(F("T:"));
-              Serial.print(t, HEX);
+              printf("T:%02X", t);
             }
 
             break;
@@ -713,9 +674,9 @@ int monitor(void)
         {
           if (terminate == '\r' || terminate == '=')
           {
-            Serial.print('\n');
+            printf("\r\n");
             print4hex(arg);
-            Serial.print(F(": "));
+            printf(": ");
           }
           d = readhex(&terminate, 0);
           if (terminate != ';' || noread == 0)
@@ -747,26 +708,26 @@ int monitor(void)
           limit = 0xFFFF; // wrapped around!
 
 
-        Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
+        printf(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
         for (i = arg; i <= limit; i++)
         {
           if (ct % 16 == 0)
           {
             if (ct != 16)
               adump(i - 16);
-            Serial.println();
+            printf("\r\n");
             print4hex(i);
-            Serial.print(F(": "));
+            printf(": ");
           }
           else if (ct % 8 == 0)
-            Serial.print(' ');
+            putchar(' ');
           ct++;
 
           print2hex(memread(i));
-          Serial.print(' ');
+          putchar(' ');
           if (i == 0xFFFF)
             break; // hit limit
-          if (Serialread() == 0x1b)
+          if (kbhit() && Serialread() == 0x1b)
             break;
         }
         adump(i - 16);
@@ -775,8 +736,8 @@ int monitor(void)
     break;
 
     default:
-      Serial.print((char)cmd);
-      Serial.println(F("?"));
+      putchar((char)cmd);
+      printf(F("? "));
     }
   }
 }

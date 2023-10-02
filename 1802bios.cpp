@@ -13,6 +13,10 @@ f809 - Send char
 
 
 */
+
+#include <cstdio>
+#include <ctime>
+
 #define F_UTYPE 0xF809
 #define F_UREAD 0xF80C
 #define F_UTEST 0xF80F
@@ -68,22 +72,15 @@ f809 - Send char
 #define F_READSIMKEY 0xFF40
 #define F_WRITESIMKEY 0xFF41
 
-#include <Arduino.h>
+
 #include "main.h"
 #include "1802.h"
-#include <class/cdc/cdc_device.h>
-#include <EEPROM.h>
-#include <LittleFS.h>
+#include "pceeprom.h"
+#include <ctype.h>
 
 
 #if BIOS == 1
 
-// handle break
-void
-tud_cdc_send_break_cb(uint8_t itf, uint16_t ms)
-{
-  brkflag = 1;
-}
 
 void init_scrt(uint16_t stack)
 {
@@ -99,7 +96,7 @@ void init_scrt(uint16_t stack)
 
 
 
-File fide;
+FILE *fide;
 uint8_t sector[512];
 unsigned long cpos = 0xfffffffful;
 int diskinit = 0;
@@ -114,16 +111,15 @@ uint8_t MAXCYL = 16;
 int reset_ide()
 {
   if (!diskinit)
-    LittleFS.begin();
+    {}
   else
-      fide.close();
-  if (EEPROM.read(MAXCYLEE)==EEPROMSIG)
+    if (currentcy!=0xFFFF) fclose(fide);
+  if (EEPROM.read(MAXCYLEE) == EEPROMSIG)
   {
     MAXCYL = EEPROM.read(MAXCYLEE + 1);
   }
   else
     MAXCYL = 7; // Default is 7 x 128K = about 1M-128K
-
   diskinit = 1;
   cpos = 0xfffffffful;
   currentcy = currsector = 0xffff;
@@ -134,32 +130,31 @@ int reset_ide()
 
 int ideseek(uint8_t h, uint16_t c, uint8_t s)
 {
-  unsigned newpos;
-  if (!dis_diskled) digitalWrite(DISKACT, 1);  // light stays on if error!
-
-  if (h  != 0 )
-    {
-      Serial.println("Bad head");
-      return -1;
+  long newpos;
+  int noseek = 0;
+  if (h != 0)
+  {
+    printf("Bad head\n");
+    return -1;
     }
 
       if (c > MAXCYL)
         return -1;
-
-      newpos = (s&0x3F) * sizeof(sector);
+      newpos = (s & 0x3F) * sizeof(sector);
       if (c != currentcy || ((s&0xC0)!=(currsector&0xC0)))
       {
         int subtrack = (s & 0xC0) >> 6;
         char subname[] = "ABCD";
-        sprintf(fname, "/ide%02x%c.dsk", c,subname[subtrack]);
+        sprintf(fname, "./disk/ide%02x%c.dsk", c,subname[subtrack]);
         if (currentcy != 0xFFFF)
         {
-          fide.close();
+          fclose(fide);
         }
-        fide = LittleFS.open(fname, "r+");
+        fide = fopen(fname, "r+");
         if (!fide)
         {
-          fide = LittleFS.open(fname, "w+");
+          fide = fopen(fname, "w+");
+          noseek = 1;
         }
         if (!fide)
         {
@@ -167,19 +162,22 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
         }
         currentcy = c;
         currsector = s;
-        if (!fide.seek(newpos, SeekSet))
-          return -1;
-        cpos = newpos + sizeof(sector); // for next time
+        if (fseek(fide,newpos, SEEK_SET))
+         {
+           return -1;
+         }
+       cpos = newpos + sizeof(sector); // for next time
   }
   else  // file already open
   {
     if (cpos!=newpos)
-      if (!fide.seek(newpos, SeekSet))
+      if (fseek(fide, newpos, SEEK_SET))
+      {
         return -1;
+      }
     cpos = newpos + sizeof(sector);
     currsector = s;
   }
-  if (!dis_diskled) digitalWrite(DISKACT, 0);
   return 0; 
 }
 
@@ -187,7 +185,7 @@ int read_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
 {
   if (ideseek(h, c, s))
     return -1;
-  if (fide.read(ram+buff,sizeof(sector))!=sizeof(sector))
+  if (fread(ram+buff,1,sizeof(sector),fide)!=sizeof(sector))
     return -1;
   return 0;
 }
@@ -199,18 +197,11 @@ int write_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
   {
     return -1;
   }
-  if (fide.write(ram+buff, sizeof(sector)) != sizeof(sector))
+  if (fwrite(ram+buff,1,sizeof(sector),fide)!= sizeof(sector))
   {
     return -1;
   }
-#if 0
-  fide.close();
-   cpos = 0xfffffffful;
-  currentcy = currsector = 0xffff;
-  *fname = '\0';
-#else
-  fide.flush();
-#endif  
+  fflush(fide);
   return 0;
 }
 
@@ -306,7 +297,6 @@ int bios(uint16_t fn)
       serputc('[');
       serputc('2');
       serputc('J');
-      //          Serial.print(F("\x1b[2J"));
     }
     else
     {
@@ -323,7 +313,7 @@ int bios(uint16_t fn)
     do
     {
 
-      c = Serial.read();
+      c = getch();
       if (c > 0 && (reg[0xe] & 0x100))
       {
         char echo = c;
@@ -344,7 +334,7 @@ int bios(uint16_t fn)
       if (c)
         serputc(c);
     } while (c);
-    Serial.flush();
+    fflush(fide);
     p = 5;
   }
   break;
@@ -355,9 +345,11 @@ int bios(uint16_t fn)
     break;
 
   case F_UTEST: // key avail?
-    df = Serial.available() ? 1 : 0;
-    p = 5;
-    break;
+  //  df = Serial.available() ? 1 : 0;
+  // for now
+  df = 0;
+  p = 5;
+  break;
 
   case F_INPUT:
   case F_INPUTL:   // real BIOS will update RF to point to terminator so we need to do that also
@@ -374,7 +366,7 @@ int bios(uint16_t fn)
     {
       do
       {
-        c = Serial.read();
+        c = getch();
         echo = c;
       } while (c == -1 || c == 0);
       if (c == 0xD)
@@ -486,14 +478,14 @@ int bios(uint16_t fn)
 
   case F_GETTOD: // get time of day
   {
-    int y, m, d, h, n, s;
-    RTCGetAll(y, m, d, h, n, s);
-    memwrite(reg[0xf]++, m);
-    memwrite(reg[0xf]++, d);
-    memwrite(reg[0xf]++, y - 1972);
-    memwrite(reg[0xf]++, h);
-    memwrite(reg[0xf]++, n);
-    memwrite(reg[0xf]++, s);
+   time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    memwrite(reg[0xf]++, tm.tm_mon+1);
+    memwrite(reg[0xf]++, tm.tm_mday);
+    memwrite(reg[0xf]++, tm.tm_year - 72);
+    memwrite(reg[0xf]++, tm.tm_hour);
+    memwrite(reg[0xf]++, tm.tm_min);
+    memwrite(reg[0xf]++, tm.tm_sec);
   }
     df = 0;
     p = 5;
@@ -508,7 +500,8 @@ int bios(uint16_t fn)
     h = memread(reg[0xF]++);
     n = memread(reg[0xF]++);
     s = memread(reg[0xF]++);
-    RTCSet(y, m, d, h, n, s);
+    // we don't let you set our RTC -- sorry
+   // RTCSet(y, m, d, h, n, s);
   }
     df = 0;
     p = 5;
@@ -551,7 +544,6 @@ int bios(uint16_t fn)
     static int eeprominit = 0;
     if (eeprominit == 0)
     {
-      EEPROM.begin(256); // we only need 128 but this is as small as we can do
       eeprominit = 1;
     }
   }
@@ -571,7 +563,7 @@ int bios(uint16_t fn)
   {
     uint16_t sz = 0;
     uint8_t drive = reg[0xd] & 1;
-    Serial.println("Warning IDE SIZE CALLED");
+    printf("Warning IDE SIZE CALLED");
     if (drive == 0)
       sz = 8;
     reg[0xF] = sz;   // need to compute this
@@ -580,7 +572,7 @@ int bios(uint16_t fn)
     break;
   }
   case F_IDEID:  // optional so I think we will try failing it for now
-    Serial.println("WARNING IDE ID CALLED");
+    printf("WARNING IDE ID CALLED");
     df = 1;
     p = 5;
     break;

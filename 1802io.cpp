@@ -1,21 +1,11 @@
-#include <Arduino.h>
+
 #include "1802.h"
 #include "main.h" // need Serialread
+#include <sys/time.h>
+#include <cstdio>
 
 volatile int brkflag = 0;
 
-extern bool _get_bootsel_button(void);  // unprotected!
-
-bool get_bootsel_button(void)
-{
-  bool rv;
-   // freeze
-  rp2040.idleOtherCore();
-  rv = _get_bootsel_button();
-  // unfreeze
-  rp2040.resumeOtherCore();
-      return rv;
-}
 
 uint8_t inp_serial(void)
 {
@@ -30,7 +20,7 @@ uint8_t inp_data(void)
 
 uint8_t inp_temp(void)
 {
-  float f = analogReadTemp();
+  float f = 0;
   return (unsigned int)f;
 }
 
@@ -106,6 +96,15 @@ uint8_t setkeybuffer(void)
 #define KEY_RD_CYCLES 0xA
 #define KEY_RD_MICROS 0xB
 
+#include <ctime>
+long long current_timestamp() {
+    struct timeval te; 
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
+    // printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
+}
+
 
 uint8_t io_read_key(uint8_t key)
 {
@@ -121,11 +120,11 @@ uint8_t io_read_key(uint8_t key)
   }
   case KEY_RD_MILLI8: // get host's millis() count (low 8 bits so 0 to .255 seconds);
   {
-    return millis() & 0xFF;
+    return current_timestamp() & 0xFF;
   }
   case KEY_RD_MILLI: // get hosts's millis count (low, followed by 4,5,6 for coordinated high byte)
   {
-    holder = millis();
+    holder = current_timestamp();
     return setkeybuffer();
   }
   case KEY_RD_B1: // get next byte of multibyte response
@@ -147,16 +146,21 @@ uint8_t io_read_key(uint8_t key)
   }
   case KEY_RD_RND32: // random number 32 bits
   {
-    holder = rp2040.hwrand32();
+
+    unsigned int seed;
+    FILE* urandom = fopen("/dev/urandom", "r");
+    fread(&seed, sizeof(int), 1, urandom);
+    fclose(urandom);
+    holder = seed;
     return setkeybuffer();
   }
   case KEY_RD_PICOW: // ask if we are a PICO W
-    return rp2040.isPicoW() ? 1 : 0;
+    return 0;
   case KEY_RD_CYCLES:
-    holder = rp2040.getCycleCount64();
+    holder = 0;    // not avaiable here 
     return setkeybuffer();
   case KEY_RD_MICROS:
-    holder = micros();
+    holder = 0;  // not available here
     return setkeybuffer();
   default:
     return 0;
@@ -228,7 +232,7 @@ void io_write_key(uint8_t key, uint16_t val)
     keybuffer64 = val;
     break;
   case KEY_WR_DELAY16:
-    delay(val);
+    //delay(val);
     break;
   case KEY_WR_TRAP16:
     trap_address = val;

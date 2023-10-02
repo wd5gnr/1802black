@@ -96,7 +96,7 @@ protected:
 // in a subclass
   int ihexreadstdin::getch()
   {
-    return getchar();
+    return getch();
   }
 
 void ihexreadstdin::setmem(uint16_t a, uint8_t d)

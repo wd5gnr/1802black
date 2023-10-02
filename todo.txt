@@ -1,3 +1,9 @@
+PC version
+1) Backspace doesn't work
+2) Monitor help doesn't do CRLF just LF (probably others)
+3) No break
+    
+
 1) Need to make the BIOS do echo for you (x)
 2) SHOW CPU drops to monitor at 8BED (due to illegal op code 0x68 which should be a nop! BONUS trigger a breakpoint on command woo hoo)
 3) SHOW MEM is wrong (x)

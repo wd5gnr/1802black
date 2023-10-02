@@ -1,8 +1,8 @@
 // 1802 Simulation for KIM-UNO hardware
 // Al Williams July 2017
-#include <Arduino.h>
 #include <stdint.h>
-#include <avr/pgmspace.h> // note: AVR only!
+#include <cstdio>
+
 
 #include "1802.h"
 #include "main.h"
@@ -45,7 +45,7 @@ uint8_t memread(uint16_t a)
   for (irom = 0; irom < sizeof(roms) / sizeof(roms[0]); irom++)
   {
     if (a >= rombase[irom] && a < rombase[irom] + romsize[irom])
-      return pgm_read_byte_near(roms[irom] + (a - rombase[irom]));
+      return roms[irom][ (a - rombase[irom])];
   }
   return 0;
 }
@@ -111,17 +111,18 @@ int run(void)
   if (tracemode)
   {
     print4hex(reg[p] - 1);
-    Serial.print(':');
+    putchar(':');
     print2hex(inst);
-    Serial.print(F(" D="));
+    printf(" D=");
     print2hex(d);
-    Serial.print(F(" P="));
+    printf(F(" P="));
     print2hex(p);
-    Serial.print(F(" X="));
+    printf(F(" X="));
     print2hex(x);
-    Serial.print(" R[x]=");
+    printf(" R[x]=");
     print2hex(reg[x]);
-    Serial.println(F(""));
+    printf("\n");
+     
   }
   if (inst == 0) // op code 00 causes simulation to stop
   {              // IDL
@@ -308,7 +309,6 @@ int run(void)
     case 0xa:
     case 0xb:
       q = N & 1;
-      digitalWrite(LEDPIN, q);
       break;
     case 0xc:
       work = d + memread(reg[p]) + df; // fixed thanks to sjaturner

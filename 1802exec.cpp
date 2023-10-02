@@ -1,9 +1,10 @@
 
-#include <Arduino.h>
-#include <EEPROM.h>
+
+#include "pceeprom.h"
 #include "1802.h"
 #include "main.h"
 #include "ihex1802.h"
+#include <cstdint>
 
 // CPU states... run, load memory, or set address
 int runstate = 0;
@@ -15,15 +16,14 @@ uint8_t ef4term = 0;
 // Properly print two hex digits
 void print2hex(uint8_t v, int tab) {
   if (tab)
-    Serial.print('\t');
-  if (v < 0x10)
-    Serial.print('0');
-  Serial.print(v, HEX);
+    putchar('\t');
+  printf("%02X", v);
 }
 
 void print4hex(uint16_t v, int tab) {
-  print2hex(v >> 8,tab);
-  print2hex(v);
+  if (tab)
+    putchar('\t');
+  printf("%04X", v);
 }
 
 void updateLEDdata(void) {
@@ -130,26 +130,21 @@ int exec1802(int ch) {
   if (ch == '!') {
     for (int i = 0; i < 3; i++)
       for (int j = 0; j < 2; j++) {
-        if (i == 2 && j == 0) Serial.print(F(" "));
-        Serial.print(threeHex[i][j], HEX);
+        if (i == 2 && j == 0) printf(F(" "));
+        printf("%04X",0/*threeHex[i][j]*/);
       }
-    Serial.println();
-    Serial.print(F("LEDS: Q="));
-    Serial.print(q);
-    Serial.print(F(" Load="));
-    Serial.print(loadstate!=0);
-    Serial.print(F(" Run: "));
-    Serial.print(runstate!=0);
-    Serial.print(F(" EF4="));
-    Serial.print(ef4!=0);
-    Serial.print(F(" MP="));
-    Serial.println(mp!=0);
+    printf("\r\n");
+    printf(F("LEDS: Q=%d"),q&1);
+    printf(F(" Load=%d"),loadstate!=0);
+    printf(F(" Run: %d"),runstate!=0);
+    printf(" EF4=%d", ef4 != 0);
+    printf(F(" MP=%d"),mp!=0);
     return 1;
   }
   if (ch == 'Y' || ch == 'y')  // write intel hex
   {
     ihexo1802 writer;
-    Serial.println();
+    printf("\r\n");
     writer.write(ram, MAXMEM);
     return 1;
   }
@@ -164,41 +159,36 @@ int exec1802(int ch) {
   {
     uint16_t ptr;
     int group = 0;
-    Serial.println(F("@0000:"));
+    printf(F("@0000:\r\n"));
     for (ptr = 0; ptr <= MAXMEM; ptr++) {
       print2hex(ram[ptr]);
       group++;
       if (group == 16) {
-        Serial.print(F("\r\n"));
+        printf(F("\r\n"));
         group = 0;
-      } else Serial.print(' ');
+      } else printf(" ");
     }
-    Serial.print(F(".\n"));
+    printf(F(".\r\n"));
     return 1;
   }
   if (ch == ';') tracemode ^= 1;  // trace toggle
   if (ch == '*')                  // dump processor state
   {
     int j;
-    Serial.println();
-    for (j = 0; j < 16; j++) {
-      Serial.print('R');
-      Serial.print(j, HEX);
-      Serial.print(':');
+    printf("\r\n");
+    for (j = 0; j < 16; j++)
+    {
+      printf("R%1X:",j);
       print4hex(reg[j]);
-      Serial.println();
+      printf("\r\n");
     }
-    Serial.print(F("DR:"));
+    printf(F("DR:"));
     print2hex(d);
-    Serial.println();
-    Serial.print(F("DF:"));
-    Serial.println(df);  // all single digit
-    Serial.print(F("X:"));
-    Serial.println(x);
-    Serial.print(F("P:"));
-    Serial.println(p);
-    Serial.print(F("Q:"));
-    Serial.println(q);
+    printf("\r\n");
+    printf(F("DF: %d\r\n"), df & 1);
+    printf(F("X: %d\r\n"),x);
+    printf("P: %X\r\n", p);
+    printf("Q: %d\r\n", q);
     return 1;
   }
   // regular keys

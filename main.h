@@ -1,6 +1,9 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
+#define F(s) s
+#include <cstdint>
+#include "getch.h"
 
 
 int freeRam(void);
