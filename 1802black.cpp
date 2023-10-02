@@ -111,11 +111,13 @@ void setupUno()
 }
 
 #include <getopt.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
   int c;
-  while ((c = getopt(argc,argv,"ar:?"))!=-1)
+  while ((c = getopt(argc,argv,"ar:p?"))!=-1)
   {
     switch(c)
     {
@@ -125,7 +127,34 @@ int main(int argc, char *argv[])
       case 'r':
         romsel = atoi(optarg);
         break;
-      case '?':
+      case 'p':  
+      {
+      int mainfd, termfd;
+      char *termdev;
+
+
+      mainfd = posix_openpt(O_RDWR|O_NOCTTY);
+
+
+    if ( mainfd == -1
+        || grantpt (mainfd) == -1
+        || unlockpt (mainfd) == -1
+        || (termdev = ptsname (mainfd)) == NULL)
+        {
+          perror("PTY Error");
+          exit(10);
+        }
+
+        printf("pty device is: %s\n", termdev);
+
+     
+      // redirect stdin and out
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        dup2(mainfd, STDIN_FILENO);
+        dup2(mainfd, STDOUT_FILENO);
+      }
+          case '?':
         printf("Help goes here\r\n");
         break;
       }
