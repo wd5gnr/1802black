@@ -76,6 +76,9 @@ static uint16_t arg;  // one argument
 static int terminate; // termination character
 static int noread;
 
+// generic sector buffer
+uint8_t sbuf[512];
+
 int monactive = 0;
 
 int getch(void)
@@ -131,6 +134,8 @@ uint8_t readline(int *terminate)
         *terminate = 0x1b;
       return '\0';
     }
+    if (c == 0x7F || c == 0xFF)
+      c = 8;
     if (c == 8 && cb != 0)
     {
       cb--;
@@ -208,7 +213,7 @@ uint16_t readhexbuf(int *term, uint16_t def = 0xFFFF)
 
 int diskcfm(void)
 {
-  Serial.println("\r\nY to continue: ");
+  Serial.println("\r\nY to proceed, N to abort? ");
   int n = getch();
   return (n == 'y' || n == 'Y');
 }
@@ -228,6 +233,8 @@ void diskmon(void)
                      "D - Directory\r\n"
                      "F - Format (will ask for confirmation)\r\n"
                      "R - read sectors from 1st 'track': R [sector] [count]\r\n"
+                     "> - Write disk out in exchange format\r\n"
+                     "< - Read disk in from exchange format\r\n"
                      "X - eXit"));
     int n = readline(NULL);
     n = toupper(n);
@@ -271,26 +278,130 @@ void diskmon(void)
         Serial.println(LittleFS.format());
       break;
 
-    case 'D':
+    case '>':
     {
-      Dir dir = LittleFS.openDir("/");
-      while (dir.next())
-        Serial.println(dir.fileName());
+      unsigned i;
+      int rv;
+      uint16_t c = 0;
+      uint8_t s = 0;
+      if (reset_ide())
+      {
+        Serial.println("Can't reset disk");
+        break;
+      }
+      Serial.printf("!DISK1:%04X:", MAXCYL);
+      do
+      {
+        rv = read_mide(sbuf, 0, c, s);
+        if (!rv)
+        {
+          for (i = 0; i < sizeof(sbuf); i++)
+          {
+            Serial.printf("%02X", sbuf[i]);
+            if (((i + 1) % 16) == 0)
+              Serial.println();
+          }
+          s++;
+          if (!s)
+            c++;
+        }
+      } while (rv == 0);
+      Serial.println("EOF");
     }
     break;
-    case 'S':
-    {
-      int n;
-      EEPROM.write(MAXCYLEE, EEPROMSIG);
-      EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
-      Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
-      break;
-    }
-
-    default:
-      Serial.println("?");
-    }
+  case '<':
+      {
+        uint16_t c = 0;
+        uint8_t s = 0;
+        unsigned i;
+        int rv;
+        char inbuf[3];
+        File f;
+        if (!diskcfm())
+          break;
+        // read header or error
+        while (getch()!='!')
+          ;
+        if (getch()!='D' || getch()!='I' || getch()!='S'
+        || getch()!='K')
+        {
+          Serial.println("Invalid file format");
+          break;
+        }
+        if (getch()!='1' || getch()!=':')
+        {
+          Serial.printf("Bad file version\r\n");
+          break;
+        }
+        // set MAXCYL
+        sbuf[0] = getch();
+        sbuf[1] =  getch();
+        sbuf[2] =  getch();
+        sbuf[3] =  getch();;
+        sbuf[4] = '\0';
+        if (sscanf((char *)sbuf, "%04X", &rv)!=1)
+        {
+          Serial.println("Misformed file");
+          break;
+        }
+        MAXCYL = rv;
+        getch();  // better be a colon but not checked
+        reset_ide();
+        i = 0;
+        while (1)
+        {
+        if (i==sizeof(sbuf))
+        {
+          i = 0;
+          rv = write_mide(sbuf, 0, c, s);
+          s++;
+          if (s==0)
+            c++;
+        }
+        // read bytes
+        inbuf[0] = getch();
+        // on CRLF issue Prompt ]
+        if (inbuf[0]=='\r' || inbuf[0]=='\n')
+          {
+            Serial.write(']');
+            continue;
+          }
+          inbuf[1] = getch();
+          if (inbuf[0] == 'E' && inbuf[1] == 'O')
+          {
+            // end of file
+            // we assume the sender did not send
+            // an odd number of bytes so...
+            Serial.println("Complete");
+            break;
+        }
+        inbuf[2] = '\0';
+        sscanf(inbuf, "%X", &rv);
+        sbuf[i++] = rv;
+        }
+        reset_ide();
+      }
+    break;
+  case 'D':
+  {
+    Dir dir = LittleFS.openDir("/");
+    while (dir.next())
+      Serial.println(dir.fileName());
   }
+  break;
+  case 'S':
+  {
+    int n;
+    EEPROM.write(MAXCYLEE, EEPROMSIG);
+    EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
+    Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
+    break;
+  }
+
+  default:
+    Serial.println("?");
+  }
+}
 }
 
 BP bp[16];
@@ -316,10 +427,10 @@ int nobreak;
 
 void mon_status(void)
 {
-//  print4hex(reg[p]);
-//  Serial.print(F(": "));
-  disasmline(reg[p],0);      
-//  print2hex(memread(reg[p]));
+  //  print4hex(reg[p]);
+  //  Serial.print(F(": "));
+  disasmline(reg[p], 0);
+  //  print2hex(memread(reg[p]));
   Serial.print(F("\tD="));
   print2hex(d);
   Serial.println();
@@ -731,21 +842,19 @@ int monitor(void)
         if (arg2 == 0)
           arg2 = 0x100;
 
-
         // normalize
-        i = arg & 0xF;  // how much off are we?
+        i = arg & 0xF; // how much off are we?
         arg &= 0xFFF0;
         arg2 += i;
         if (arg2 & 0xF)
         {
           arg2 &= 0xFFF0;
-          arg2 += 0x10;  // make sure we have a multiple of 16
+          arg2 += 0x10; // make sure we have a multiple of 16
         }
 
         limit = (arg + arg2) - 1;
         if (limit < arg)
           limit = 0xFFFF; // wrapped around!
-
 
         Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
         for (i = arg; i <= limit; i++)

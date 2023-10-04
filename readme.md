@@ -8,7 +8,15 @@ What's New
 This is the RP PICO version. Arduino IDE Settings: 
 "flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default"
 
-The binaries directory has UF2 files for a 2M standard Pico and a 16M clone.
+The binaries directory has UF2 files for a 2M standard Pico and a 16M clone. It also has two "disk dump" zip files, one for 2M and one 16M (1M or 15M of flash storage).
+To use these:
+1. Unzip the file to get a dmp file.
+2. Start the emulator and enter the metamonitor (from BIOS do SHOW CPU)
+3. Enter the disk menu (`)
+4. Format the disk (F)
+5. Do a < command and then dump the dmp file as ASCII into your terminal
+6. When complete, reset the machine
+7. Then from bios you should be able to issue a BOOT command to enter the operating system
 
 Big update allows you to use some flash (have to change the Arduinio settings above) as a disk drive to boot/use ElfOS). See ElfOs.md for more details.
 

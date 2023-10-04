@@ -183,23 +183,28 @@ int ideseek(uint8_t h, uint16_t c, uint8_t s)
   return 0; 
 }
 
-int read_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
+int read_mide(uint8_t *buff, uint8_t h, uint16_t c, uint8_t s)
 {
   if (ideseek(h, c, s))
     return -1;
-  if (fide.read(ram+buff,sizeof(sector))!=sizeof(sector))
+  if (fide.read(buff,sizeof(sector))!=sizeof(sector))
     return -1;
   return 0;
 }
 
-int write_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
+int read_ide(uint16_t buff,uint8_t h, uint16_t c, uint8_t s)
+{
+  return read_mide(ram + buff, h, c, s);
+}
+
+int write_mide(uint8_t *buff, uint8_t h, uint16_t c, uint8_t s)
 {
   int i;
   if (ideseek(h, c, s))
   {
     return -1;
   }
-  if (fide.write(ram+buff, sizeof(sector)) != sizeof(sector))
+  if (fide.write(buff, sizeof(sector)) != sizeof(sector))
   {
     return -1;
   }
@@ -214,7 +219,10 @@ int write_ide(uint16_t buff, uint8_t h, uint16_t c, uint8_t s)
   return 0;
 }
 
-
+int write_ide(uint16_t buff,uint8_t h, uint16_t c, uint8_t s)
+{
+  return write_mide(ram + buff, h, c, s);
+}
 
 int get_chs(uint8_t h, uint16_t &c,uint8_t &s)
 {
@@ -387,7 +395,7 @@ int bios(uint16_t fn)
         c = 0;
         df = 1;
       }
-      if (c == 8 || c == 0xFF)
+      if (c == 8 || c == 0xFF || c==0x7F)
       {
         if (n)
         {
