@@ -1,0 +1,7 @@
+{
+    "configuration": "flash=16777216_15728640,freq=150,opt=Optimize2,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default",
+    "board": "rp2040:rp2040:waveshare_rp2040_plus_16mb",
+    "sketch": "1802black.ino",
+    "port": "/dev/ttyACM0",
+    "output": "/tmp/build"
+}
