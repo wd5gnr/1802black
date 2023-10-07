@@ -545,7 +545,7 @@ void do_help(void)
 {
   Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
   Serial.println(F("<C>ontinue, .cccc (send characters to front panel; no space after ."));
-  Serial.println(F("<D>isassemble <$>exit to OS <`> Disk menu <V>isual toggle <S>atus refresh"));
+  Serial.println(F("<D>isassemble <`> Disk menu <V>isual toggle <S>atus refresh"));
   Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
   Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
   Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
