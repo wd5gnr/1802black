@@ -4,6 +4,9 @@
 #if MONITOR == 1
 #include <EEPROM.h>
 #include <LittleFS.h>
+#include <cstdio>
+#include <cstring>
+#include "vt100.h"
 
 /*
 Commands:
@@ -75,6 +78,12 @@ static int cmd;       // command
 static uint16_t arg;  // one argument
 static int terminate; // termination character
 static int noread;
+
+#ifdef METAMON_VISUAL_NODEF
+int visualmode = 0;
+#else
+int visualmode = 1;
+#endif
 
 // generic sector buffer
 uint8_t sbuf[512];
@@ -309,106 +318,108 @@ void diskmon(void)
       Serial.println("EOF");
     }
     break;
-  case '<':
+    case '<':
+    {
+      uint16_t c = 0;
+      uint8_t s = 0;
+      unsigned i;
+      int rv;
+      char inbuf[3];
+      File f;
+      if (!diskcfm())
+        break;
+      // read header or error
+      while (getch() != '!')
+        ;
+      if (getch() != 'D' || getch() != 'I' || getch() != 'S' || getch() != 'K')
       {
-        uint16_t c = 0;
-        uint8_t s = 0;
-        unsigned i;
-        int rv;
-        char inbuf[3];
-        File f;
-        if (!diskcfm())
-          break;
-        // read header or error
-        while (getch()!='!')
-          ;
-        if (getch()!='D' || getch()!='I' || getch()!='S'
-        || getch()!='K')
-        {
-          Serial.println("Invalid file format");
-          break;
-        }
-        if (getch()!='1' || getch()!=':')
-        {
-          Serial.printf("Bad file version\r\n");
-          break;
-        }
-        // set MAXCYL
-        sbuf[0] = getch();
-        sbuf[1] =  getch();
-        sbuf[2] =  getch();
-        sbuf[3] =  getch();;
-        sbuf[4] = '\0';
-        if (sscanf((char *)sbuf, "%04X", &rv)!=1)
-        {
-          Serial.println("Misformed file");
-          break;
-        }
-        MAXCYL = rv;
-        getch();  // better be a colon but not checked
-        reset_ide();
-        i = 0;
-        while (1)
-        {
-        if (i==sizeof(sbuf))
+        Serial.println("Invalid file format");
+        break;
+      }
+      if (getch() != '1' || getch() != ':')
+      {
+        Serial.printf("Bad file version\r\n");
+        break;
+      }
+      // set MAXCYL
+      sbuf[0] = getch();
+      sbuf[1] = getch();
+      sbuf[2] = getch();
+      sbuf[3] = getch();
+      ;
+      sbuf[4] = '\0';
+      if (sscanf((char *)sbuf, "%04X", &rv) != 1)
+      {
+        Serial.println("Misformed file");
+        break;
+      }
+      MAXCYL = rv;
+      getch(); // better be a colon but not checked
+      reset_ide();
+      i = 0;
+      while (1)
+      {
+        if (i == sizeof(sbuf))
         {
           i = 0;
           rv = write_mide(sbuf, 0, c, s);
           s++;
-          if (s==0)
+          if (s == 0)
             c++;
         }
         // read bytes
         inbuf[0] = getch();
         // on CRLF issue Prompt ]
-        if (inbuf[0]=='\r' || inbuf[0]=='\n')
-          {
-            Serial.write(']');
-            continue;
-          }
-          inbuf[1] = getch();
-          if (inbuf[0] == 'E' && inbuf[1] == 'O')
-          {
-            // end of file
-            // we assume the sender did not send
-            // an odd number of bytes so...
-            Serial.println("Complete");
-            break;
+        if (inbuf[0] == '\r' || inbuf[0] == '\n')
+        {
+          Serial.write(']');
+          continue;
+        }
+        inbuf[1] = getch();
+        if (inbuf[0] == 'E' && inbuf[1] == 'O')
+        {
+          // end of file
+          // we assume the sender did not send
+          // an odd number of bytes so...
+          Serial.println("Complete");
+          break;
         }
         inbuf[2] = '\0';
         sscanf(inbuf, "%X", &rv);
         sbuf[i++] = rv;
-        }
-        reset_ide();
       }
+      reset_ide();
+    }
     break;
-  case 'D':
-  {
-    Dir dir = LittleFS.openDir("/");
-    while (dir.next())
-      Serial.println(dir.fileName());
-  }
-  break;
-  case 'S':
-  {
-    int n;
-    EEPROM.write(MAXCYLEE, EEPROMSIG);
-    EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
-    Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
+    case 'D':
+    {
+      Dir dir = LittleFS.openDir("/");
+      while (dir.next())
+        Serial.println(dir.fileName());
+    }
     break;
-  }
+    case 'S':
+    {
+      int n;
+      EEPROM.write(MAXCYLEE, EEPROMSIG);
+      EEPROM.write(MAXCYLEE + 1, n = readhexbuf(NULL, 0x10));
+      Serial.printf("Set max cylinder to %d (0x%x)\r\n", n, n);
+      break;
+    }
 
-  default:
-    Serial.println("?");
+    default:
+      Serial.println("?");
+    }
   }
-}
 }
 
 BP bp[16];
 
-void dispbp(int bpn)
+void dispbp(int bpn, int nl = 1)
 {
-  Serial.print(F("\r\nBP"));
+  if (nl)
+    Serial.print("\r\n");
+  Serial.print(F("BP"));
   Serial.print(bpn, HEX);
   Serial.print(F(": "));
   if (bp[bpn].type == 1)
@@ -425,12 +436,165 @@ void dispbp(int bpn)
 
 int nobreak;
 
+char viscmd = ' ';
+uint16_t visadd = 0;
+
+void reg_dump(void)
+{
+  int i;
+  for (i = 0; i <= 15; i += 4)
+  {
+    Serial.print(F("R"));
+    Serial.print(i, HEX);
+    Serial.print(':');
+    print4hex(reg[i]);
+    Serial.print(F("\tR"));
+    Serial.print(i + 1, HEX);
+    Serial.print(':');
+    print4hex(reg[i + 1]);
+    Serial.print(F("\tR"));
+    Serial.print(i + 2, HEX);
+    Serial.print(':');
+    print4hex(reg[i + 2]);
+    Serial.print(F("\tR"));
+    Serial.print(i + 3, HEX);
+    Serial.print(':');
+    print4hex(reg[i + 3]);
+    Serial.println();
+  }
+  Serial.print(F("(10) X:"));
+  Serial.print(x, HEX);
+  Serial.print(F("\t(11) P:"));
+  Serial.println(p, HEX);
+  Serial.print(F("(12) D:"));
+  print2hex(d);
+  Serial.print(F("\t(13) DF:"));
+  Serial.println(df, HEX);
+  Serial.print(F("(14) Q:"));
+  Serial.print(q, HEX);
+  Serial.print(F("\t(15) T:"));
+  Serial.println(t, HEX);
+}
+
+// dump printable characters
+static void adump(unsigned a)
+{
+  int z;
+  Serial.print(F("  "));
+  for (z = 0; z < 16; z++)
+  {
+    char b = memread(a + z);
+    if (b >= ' ')
+      Serial.print(b);
+    else
+      Serial.print('.');
+  }
+}
+
+void mem_dump(uint16_t arg, uint16_t limit)
+{
+  uint16_t i;
+  unsigned ct = 16;
+  Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
+  for (i = arg; i <= limit; i++)
+  {
+    if (ct % 16 == 0)
+    {
+      if (ct != 16)
+        adump(i - 16);
+      Serial.println();
+      print4hex(i);
+      Serial.print(F(": "));
+    }
+    else if (ct % 8 == 0)
+      Serial.print(' ');
+    ct++;
+
+    print2hex(memread(i));
+    Serial.print(' ');
+    if (i == 0xFFFF)
+      break; // hit limit
+    if (Serialread() == 0x1b)
+      break;
+  }
+  adump(i - 16);
+}
+
+void bp_dump()
+{
+  int i;
+  for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i += 2)
+  {
+    dispbp(i, i != 0);
+    Serial.print('\t');
+    dispbp(i + 1, 0);
+  }
+  Serial.println();
+}
+
+void do_line(int nl = 0)
+{
+  for (int i = 0; i < 70; i++)
+    Serial.print('-');
+  if (nl)
+    Serial.println();
+}
+
+void do_help(void)
+{
+  Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
+  Serial.println(F("<C>ontinue, .cccc (send characters to front panel; no space after ."));
+  Serial.println(F("<D>isassemble <$>exit to OS <`> Disk menu <V>isual toggle <S>atus refresh"));
+  Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
+  Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
+  Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
+}
+
+void visual_mon_status()
+{
+  uint16_t a;
+  VT100::cls();
+  VT100::gotorc(1, 1);
+  reg_dump();
+  do_line(1);
+  a = reg[p];
+  if (viscmd == '?')
+  {
+    do_help();
+  }
+  if (viscmd == 'B')
+  {
+    bp_dump();
+  }
+  if (viscmd == 'D')
+  {
+    disasm1802(visadd, visadd + 9);
+  }
+  if (viscmd == 'M')
+  {
+    uint16_t a = visadd & 0xFFF0;
+    mem_dump(a, a + 0x7F);
+  }
+  VT100::gotorc(18, 1);
+  do_line(1);
+  for (int j = 0; j < 3; j++)
+  {
+    a += disasmline(a, j != 0) + 1;
+    if (j == 0)
+      Serial.printf("\tD=%02X <===\r\n", d);
+  }
+  do_line(1);
+}
+
 void mon_status(void)
 {
-  //  print4hex(reg[p]);
-  //  Serial.print(F(": "));
-  disasmline(reg[p], 0);
-  //  print2hex(memread(reg[p]));
+  if (visualmode)
+    visual_mon_status();
+  else
+  {
+    disasmline(reg[p], 0);
+    Serial.printf("\tD=%02X <==\r\n", d);
+  }
   Serial.print(F("\tD="));
   print2hex(d);
   Serial.println();
@@ -478,32 +642,33 @@ int mon_checkbp(void)
   return 1;
 }
 
-// dump printable characters
-static void adump(unsigned a)
-{
-  int z;
-  Serial.print(F("  "));
-  for (z = 0; z < 16; z++)
-  {
-    char b = memread(a + z);
-    if (b >= ' ')
-      Serial.print(b);
-    else
-      Serial.print('.');
-  }
-}
-
 int monitor(void)
 {
   int noarg;
+  if (monactive == 0 && visualmode)
+    visual_mon_status();
   monactive = 1;
   while (1)
   {
-    Serial.print(F("\r\n>"));
+    if (visualmode)
+    {
+      VT100::gotorc(24, 1);
+      VT100::clreol();
+      Serial.print(F("(? help; v toggle fullscreen)>"));
+    }
+    else
+      Serial.print(F("\r\n>"));
     cmd = readline(&terminate);
+    if (visualmode)
+    {
+      visual_mon_status();
+      VT100::gotorc(23, 1);
+      VT100::clreos();
+      Serial.print("Result: ");
+    }
     if (terminate == 0x1b)
       continue;
-    if (!strchr("DRMGBIOXQCN&?.`", cmd))
+    if (!strchr("DRMGBIOXQCN&Vvs?.`", cmd))
     {
       Serial.print('?');
       continue;
@@ -515,6 +680,21 @@ int monitor(void)
       noarg = 1;
     switch (cmd)
     {
+    case 's':
+      VT100::cls();
+      VT100::gotorc(1, 1);
+      mon_status();
+      break;
+
+    case 'v':
+    case 'V':
+      visualmode = !visualmode;
+      if (!visualmode)
+        VT100::cls();
+      else
+        visual_mon_status();
+      break;
+
     case '.':
       for (char *cp = cmdbuf + 1; *cp; cp++)
         exec1802(*cp);
@@ -540,12 +720,15 @@ int monitor(void)
     }
     break;
     case '?':
-      Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
-      Serial.println(F("<Q>uit, <C>ontinue, .cccc (send characters to front panel; no space after .)"));
-      Serial.println(F("<D>isassemble <&> time<`> Disk menu\r\n "));
-      Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
-      Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
-      Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
+      if (visualmode)
+      {
+        viscmd = '?';
+        visual_mon_status();
+      }
+      else
+      {
+        do_help();
+      }
       break;
 
     case '`':
@@ -569,20 +752,36 @@ int monitor(void)
       limit = (arg + arg2) - 1;
       if (limit < arg)
         limit = 0xFFFF; // wrapped around!
-      disasm1802(arg, limit);
+      if (visualmode)
+      {
+        viscmd = 'D';
+        visadd = arg;
+        visual_mon_status();
+      }
+      else
+        disasm1802(arg, limit);
     }
     break;
 
     case 'N':
       nobreak = 1;
-      mon_status();
+      if (!visualmode)
+        mon_status();
       run();
+      if (visualmode)
+        visual_mon_status();
       nobreak = 0;
       break;
 
     case 'B':
       if (noarg || arg >= 0x10)
       {
+        if (visualmode)
+        {
+          viscmd = 'B';
+          visual_mon_status();
+          break;
+        }
         int i;
         for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i++)
           dispbp(i);
@@ -630,39 +829,10 @@ int monitor(void)
     case 'R':
       if (noarg)
       {
-        int i;
-        for (i = 0; i <= 15; i += 4)
-        {
-          Serial.print(F("R"));
-          Serial.print(i, HEX);
-          Serial.print(':');
-          print4hex(reg[i]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 1, HEX);
-          Serial.print(':');
-          print4hex(reg[i + 1]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 2, HEX);
-          Serial.print(':');
-          print4hex(reg[i + 2]);
-          Serial.print(F("\tR"));
-          Serial.print(i + 3, HEX);
-          Serial.print(':');
-          print4hex(reg[i + 3]);
-          Serial.println();
-        }
-        Serial.print(F("(10) X:"));
-        Serial.print(x, HEX);
-        Serial.print(F("\t(11) P:"));
-        Serial.println(p, HEX);
-        Serial.print(F("(12) D:"));
-        print2hex(d);
-        Serial.print(F("\t(13) DF:"));
-        Serial.println(df, HEX);
-        Serial.print(F("(14) Q:"));
-        Serial.print(q, HEX);
-        Serial.print(F("\t(15) T:"));
-        Serial.print(t, HEX);
+        if (!visualmode)
+          reg_dump();
+        else
+          visual_mon_status();
       }
       else
       {
@@ -674,6 +844,7 @@ int monitor(void)
           {
             uint16_t v = readhexbuf(&terminate);
             reg[arg] = v;
+            visual_mon_status();
           }
           else
           {
@@ -768,6 +939,7 @@ int monitor(void)
 
             break;
           }
+          visual_mon_status();
         }
       }
 
@@ -855,33 +1027,17 @@ int monitor(void)
         limit = (arg + arg2) - 1;
         if (limit < arg)
           limit = 0xFFFF; // wrapped around!
-
-        Serial.print(F("       0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F"));
-        for (i = arg; i <= limit; i++)
+        if (visualmode)
         {
-          if (ct % 16 == 0)
-          {
-            if (ct != 16)
-              adump(i - 16);
-            Serial.println();
-            print4hex(i);
-            Serial.print(F(": "));
-          }
-          else if (ct % 8 == 0)
-            Serial.print(' ');
-          ct++;
-
-          print2hex(memread(i));
-          Serial.print(' ');
-          if (i == 0xFFFF)
-            break; // hit limit
-          if (Serialread() == 0x1b)
-            break;
+          viscmd = 'M';
+          visadd = arg;
+          visual_mon_status();
         }
-        adump(i - 16);
+        else
+          mem_dump(arg, limit);
       }
+      break;
     }
-    break;
 
     default:
       Serial.print((char)cmd);
