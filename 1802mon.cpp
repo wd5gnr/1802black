@@ -438,6 +438,7 @@ int nobreak;
 
 char viscmd = ' ';
 uint16_t visadd = 0;
+uint16_t visnext = 0;
 
 void reg_dump(void)
 {
@@ -568,7 +569,7 @@ void visual_mon_status()
   }
   if (viscmd == 'D')
   {
-    disasm1802(visadd, visadd + 9);
+    visnext = disasm1802(visadd, visadd + 9) - 1;
   }
   if (viscmd == 'M')
   {
@@ -668,7 +669,7 @@ int monitor(void)
     }
     if (terminate == 0x1b)
       continue;
-    if (!strchr("DRMGBIOXQCN&Vvs?.`", cmd))
+    if (!strchr("DRMGBIOXQCN&VS?.`", cmd))
     {
       Serial.print('?');
       continue;
@@ -741,6 +742,18 @@ int monitor(void)
       unsigned limit;
       if (noarg)
       {
+        if (visualmode && viscmd == 'D')
+        {
+          visadd = visnext;
+          visual_mon_status();
+          break;
+        }
+        else if (visualmode)
+        {
+          viscmd = 'D'; // take last address
+          visual_mon_status();
+          break;
+        }
         Serial.println(F("Usage: D address [length]"));
         break;
       }
@@ -819,6 +832,8 @@ int monitor(void)
           bp[arg].type = 3;
           break;
         }
+        if (visualmode)
+          visual_mon_status();
       }
       else
       {
@@ -996,7 +1011,7 @@ int monitor(void)
         {
           if (terminate == '\r' || terminate == '=')
           {
-            Serial.print('\n');
+            Serial.print("\r\n");
             print4hex(arg);
             Serial.print(F(": "));
           }
@@ -1029,8 +1044,14 @@ int monitor(void)
           limit = 0xFFFF; // wrapped around!
         if (visualmode)
         {
+          if (noarg)
+          {
+            if (viscmd == 'M')
+              visadd += 0x80;
+          }
+          else
+            visadd = arg;
           viscmd = 'M';
-          visadd = arg;
           visual_mon_status();
         }
         else

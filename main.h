@@ -61,7 +61,7 @@ bool get_bootsel_button(void);
 #define MONITORPIN 14  // use -1 to read bootsel button (slow)
 #define DISKACT 25   // disk activity (25 to use Q LED)
 
-void disasm1802(unsigned start, unsigned stop);
+unsigned disasm1802(unsigned start, unsigned stop);
 unsigned disasmline(unsigned mp, int nl=1);
 
 #endif
