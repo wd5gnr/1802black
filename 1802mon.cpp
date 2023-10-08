@@ -596,9 +596,6 @@ void mon_status(void)
     disasmline(reg[p], 0);
     Serial.printf("\tD=%02X <==\r\n", d);
   }
-  Serial.print(F("\tD="));
-  print2hex(d);
-  Serial.println();
 }
 
 bool enterMonitor(void)
@@ -681,13 +678,12 @@ int monitor(void)
       noarg = 1;
     switch (cmd)
     {
-    case 's':
+    case 'S':
       VT100::cls();
       VT100::gotorc(1, 1);
       mon_status();
       break;
 
-    case 'v':
     case 'V':
       visualmode = !visualmode;
       if (!visualmode)
@@ -816,21 +812,21 @@ int monitor(void)
           cc = readhexbuf(&terminate);
           bp[arg].target = cc;
           bp[arg].type = 1;
-          break;
+          
         }
         if (cc == 'p' || cc == 'P')
         {
           cc = readhexbuf(&terminate);
           bp[arg].target = cc & 0xF;
           bp[arg].type = 2;
-          break;
+          
         }
         if (cc == 'i' || cc == 'I')
         {
           cc = readhexbuf(&terminate);
           bp[arg].target = cc & 0xFF;
           bp[arg].type = 3;
-          break;
+          
         }
         if (visualmode)
           visual_mon_status();
