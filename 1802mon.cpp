@@ -437,6 +437,7 @@ void dispbp(int bpn, int nl = 1)
 int nobreak;
 
 char viscmd = ' ';
+char vishlp;
 uint16_t visadd = 0;
 uint16_t visnext = 0;
 
@@ -552,15 +553,7 @@ void do_line(int nl = 0)
     Serial.println();
 }
 
-void do_help(void)
-{
-  Serial.println(F("<R>egister, <M>emory, <G>o, <B>reakpoint, <N>ext, <I>nput, <O>utput, e<X>it"));
-  Serial.println(F("<C>ontinue, .cccc (send characters to front panel; no space after ."));
-  Serial.println(F("<D>isassemble <`> Disk menu <V>isual toggle <W>atch <S>atus refresh"));
-  Serial.println(F("Examples: R (show all)  RB (show RB)  RB=2F00 (se RB)"));
-  Serial.println(F("M 100 10 (show 16 bytes at 100)   M 100=<CR>AA 55 22; (set memory at 100)"));
-  Serial.println(F("B 0 @101 (Set breakpoint 0 at 101)  .44$$ (Send front panel commands)"));
-}
+#include "metahelp.h"
 
 void visual_mon_status()
 {
@@ -571,7 +564,7 @@ void visual_mon_status()
   do_line(1);
   if (viscmd == '?')
   {
-    do_help();
+    do_help(vishlp);
   }
   if (viscmd == 'B')
   {
@@ -688,7 +681,7 @@ int monitor(void)
       continue;
     }
     noarg = 0;
-    if (cmdbuf[cb])
+    if (cmdbuf[cb] && cmd!='?')
       arg = readhexbuf(&terminate);
     else
       noarg = 1;
@@ -727,382 +720,388 @@ int monitor(void)
         if (visualmode)
           visual_mon_status();
       }
-        break;
-
-      case 'V':
-        visualmode = !visualmode;
-        if (!visualmode)
-          VT100::cls();
-        else
-          visual_mon_status();
-        break;
-
-      case '.':
-        for (char *cp = cmdbuf + 1; *cp; cp++)
-          exec1802(*cp);
-        break;
-
-      case '&':
-      {
-        int y, m, d, h, n, s;
-        RTCGetAll(y, m, d, h, n, s);
-
-        if (noarg)
-        {
-          // display time
-          Serial.printf("%4d-%02d-%02d  %02d:%02d:%02d\r\n", y, m, d, h, n, s);
-        }
-        else
-        {
-          if (sscanf(cmdbuf + 1, "%d-%d-%d %d:%d:%d", &y, &m, &d, &h, &n, &s) > 0)
-            RTCSet(y, m, d, h, n, s);
-          else
-            Serial.printf("Did not set %s\r\n", cmdbuf + cb);
-        }
-      }
       break;
-      case '?':
-        if (visualmode)
-        {
-          viscmd = '?';
-          visual_mon_status();
-        }
-        else
-        {
-          do_help();
-        }
-        break;
 
-      case '`':
-        diskmon();
-        break;
+    case 'V':
+      visualmode = !visualmode;
+      if (!visualmode)
+        VT100::cls();
+      else
+        visual_mon_status();
+      break;
 
-      case 'D':
+    case '.':
+      for (char *cp = cmdbuf + 1; *cp; cp++)
+        exec1802(*cp);
+      break;
+
+    case '&':
+    {
+      int y, m, d, h, n, s;
+      RTCGetAll(y, m, d, h, n, s);
+
+      if (noarg)
       {
-        unsigned arg2 = 0;
-        unsigned limit;
-        if (noarg)
+        // display time
+        Serial.printf("%4d-%02d-%02d  %02d:%02d:%02d\r\n", y, m, d, h, n, s);
+      }
+      else
+      {
+        if (sscanf(cmdbuf + 1, "%d-%d-%d %d:%d:%d", &y, &m, &d, &h, &n, &s) > 0)
+          RTCSet(y, m, d, h, n, s);
+        else
+          Serial.printf("Did not set %s\r\n", cmdbuf + cb);
+      }
+    }
+    break;
+    case '?':
+    {
+      uint8_t cc;
+      cc = 0;
+      cc = getbufc();
+      if (cc == ' ')
+        cc = getbufc();
+      if (visualmode)
+      {
+        viscmd = '?';
+        vishlp = cc; // help uses this as the command
+        visual_mon_status();
+      }
+      else
+        do_help(cc);
+    }
+    break;
+
+    case '`':
+      diskmon();
+      break;
+
+    case 'D':
+    {
+      unsigned arg2 = 0;
+      unsigned limit;
+      if (noarg)
+      {
+        if (visualmode && viscmd == 'D')
         {
-          if (visualmode && viscmd == 'D')
-          {
-            visadd = visnext;
-            visual_mon_status();
-            break;
-          }
-          else if (visualmode)
-          {
-            viscmd = 'D'; // take last address
-            visual_mon_status();
-            break;
-          }
-          Serial.println(F("Usage: D address [length]"));
+          visadd = visnext;
+          visual_mon_status();
           break;
         }
-        Serial.println();
+        else if (visualmode)
+        {
+          viscmd = 'D'; // take last address
+          visual_mon_status();
+          break;
+        }
+        Serial.println(F("Usage: D address [length]"));
+        break;
+      }
+      Serial.println();
+      if (terminate != '\r')
+        arg2 = readhexbuf(&terminate, 0);
+      if (arg2 == 0)
+        arg2 = 0x100;
+      limit = (arg + arg2) - 1;
+      if (limit < arg)
+        limit = 0xFFFF; // wrapped around!
+      if (visualmode)
+      {
+        viscmd = 'D';
+        visadd = arg;
+        visual_mon_status();
+      }
+      else
+        disasm1802(arg, limit);
+    }
+    break;
+
+    case 'N':
+      nobreak = 1;
+      if (!visualmode)
+        mon_status();
+      run();
+      if (visualmode)
+        visual_mon_status();
+      nobreak = 0;
+      break;
+
+    case 'B':
+      if (noarg || arg >= 0x10)
+      {
+        if (visualmode)
+        {
+          viscmd = 'B';
+          visual_mon_status();
+          break;
+        }
+        int i;
+        for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i++)
+          dispbp(i);
+        break;
+      }
+      if (terminate != '\r')
+      {
+        int cc;
+        cc = terminate;
+        if (cc == ' ')
+          cc = getbufc();
+        if (cc == '-')
+        {
+          bp[arg].type = 0;
+          break;
+        }
+        if (cc == '@')
+        {
+          cc = readhexbuf(&terminate);
+          bp[arg].target = cc;
+          bp[arg].type = 1;
+        }
+        if (cc == 'p' || cc == 'P')
+        {
+          cc = readhexbuf(&terminate);
+          bp[arg].target = cc & 0xF;
+          bp[arg].type = 2;
+        }
+        if (cc == 'i' || cc == 'I')
+        {
+          cc = readhexbuf(&terminate);
+          bp[arg].target = cc & 0xFF;
+          bp[arg].type = 3;
+        }
+        if (visualmode)
+          visual_mon_status();
+      }
+      else
+      {
+        dispbp(arg);
+      }
+      break;
+
+    case 'R':
+      if (noarg)
+      {
+        if (!visualmode)
+          reg_dump();
+        else
+          visual_mon_status();
+      }
+      else
+      {
+        if (terminate != '=')
+          Serial.print(F("R"));
+        if (arg <= 0xF)
+        {
+          if (terminate == '=')
+          {
+            uint16_t v = readhexbuf(&terminate);
+            reg[arg] = v;
+            visual_mon_status();
+          }
+          else
+          {
+            Serial.print(arg, HEX);
+            Serial.print(':');
+            print4hex(reg[arg]);
+          }
+        }
+        else
+        {
+          switch (arg)
+          {
+          case 0x10:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              x = v;
+            }
+            else
+            {
+              Serial.print(F("X:"));
+              Serial.print(x, HEX);
+            }
+
+            break;
+
+          case 0x11:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              p = v;
+            }
+            else
+            {
+              Serial.print(F("P:"));
+              Serial.print(p, HEX);
+            }
+
+            break;
+
+          case 0x12:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              d = v;
+            }
+            else
+            {
+              Serial.print(F("D:"));
+              Serial.print(d, HEX);
+            }
+
+            break;
+
+          case 0x13:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              df = v;
+            }
+            else
+            {
+              Serial.print(F("DF:"));
+              Serial.print(df, HEX);
+            }
+
+            break;
+
+          case 0x14:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              q = v;
+            }
+            else
+            {
+              Serial.print(F("Q:"));
+              Serial.print(q, HEX);
+            }
+
+          case 0x15:
+            if (terminate == '=')
+            {
+              uint16_t v = readhexbuf(&terminate);
+              t = v;
+            }
+            else
+            {
+              Serial.print(F("T:"));
+              Serial.print(t, HEX);
+            }
+
+            break;
+          }
+          visual_mon_status();
+        }
+      }
+
+      break;
+
+    case 'Q':
+    {
+      runstate = 0;
+      monactive = 0;
+      return 0;
+    }
+    case 'C':
+    case 'X':
+      monactive = 0;
+      return 1;
+    case 'I':
+      print2hex(input(arg));
+      break;
+
+    case 'O':
+    {
+      uint8_t v = readhexbuf(&terminate);
+      output(arg, v);
+      break;
+    }
+
+    case 'G':
+    {
+      if (terminate != '\r')
+        p = readhexbuf(&terminate);
+      reg[p] = arg;
+      runstate = 1;
+      monactive = 0;
+      return 0;
+    }
+
+    case 'M':
+    {
+      uint16_t arg2 = 0;
+      if (terminate == '=')
+      {
+        uint8_t d;
+        while (cmdbuf[cb] != 0)
+        {
+          d = readhexbuf(&terminate, 0);
+          if (noread == 0)
+            memwrite(arg++, d);
+          if (terminate == ';')
+            break;
+        }
+        if (terminate == ';')
+          break;
+        do
+        {
+          if (terminate == '\r' || terminate == '=')
+          {
+            Serial.print("\r\n");
+            print4hex(arg);
+            Serial.print(F(": "));
+          }
+          d = readhex(&terminate, 0);
+          if (terminate != ';' || noread == 0)
+            memwrite(arg++, d);
+        } while (terminate != ';');
+      }
+      else
+      {
+        uint16_t i, limit;
+        unsigned ct = 16;
         if (terminate != '\r')
           arg2 = readhexbuf(&terminate, 0);
         if (arg2 == 0)
           arg2 = 0x100;
+
+        // normalize
+        i = arg & 0xF; // how much off are we?
+        arg &= 0xFFF0;
+        arg2 += i;
+        if (arg2 & 0xF)
+        {
+          arg2 &= 0xFFF0;
+          arg2 += 0x10; // make sure we have a multiple of 16
+        }
+
         limit = (arg + arg2) - 1;
         if (limit < arg)
           limit = 0xFFFF; // wrapped around!
         if (visualmode)
         {
-          viscmd = 'D';
-          visadd = arg;
+          if (noarg)
+          {
+            if (viscmd == 'M')
+              visadd += 0x80;
+          }
+          else
+            visadd = arg;
+          viscmd = 'M';
           visual_mon_status();
         }
         else
-          disasm1802(arg, limit);
+          mem_dump(arg, limit);
       }
       break;
+    }
 
-      case 'N':
-        nobreak = 1;
-        if (!visualmode)
-          mon_status();
-        run();
-        if (visualmode)
-          visual_mon_status();
-        nobreak = 0;
-        break;
-
-      case 'B':
-        if (noarg || arg >= 0x10)
-        {
-          if (visualmode)
-          {
-            viscmd = 'B';
-            visual_mon_status();
-            break;
-          }
-          int i;
-          for (i = 0; i < sizeof(bp) / sizeof(bp[0]); i++)
-            dispbp(i);
-          break;
-        }
-        if (terminate != '\r')
-        {
-          int cc;
-          cc = terminate;
-          if (cc == ' ')
-            cc = getbufc();
-          if (cc == '-')
-          {
-            bp[arg].type = 0;
-            break;
-          }
-          if (cc == '@')
-          {
-            cc = readhexbuf(&terminate);
-            bp[arg].target = cc;
-            bp[arg].type = 1;
-          }
-          if (cc == 'p' || cc == 'P')
-          {
-            cc = readhexbuf(&terminate);
-            bp[arg].target = cc & 0xF;
-            bp[arg].type = 2;
-          }
-          if (cc == 'i' || cc == 'I')
-          {
-            cc = readhexbuf(&terminate);
-            bp[arg].target = cc & 0xFF;
-            bp[arg].type = 3;
-          }
-          if (visualmode)
-            visual_mon_status();
-        }
-        else
-        {
-          dispbp(arg);
-        }
-        break;
-
-      case 'R':
-        if (noarg)
-        {
-          if (!visualmode)
-            reg_dump();
-          else
-            visual_mon_status();
-        }
-        else
-        {
-          if (terminate != '=')
-            Serial.print(F("R"));
-          if (arg <= 0xF)
-          {
-            if (terminate == '=')
-            {
-              uint16_t v = readhexbuf(&terminate);
-              reg[arg] = v;
-              visual_mon_status();
-            }
-            else
-            {
-              Serial.print(arg, HEX);
-              Serial.print(':');
-              print4hex(reg[arg]);
-            }
-          }
-          else
-          {
-            switch (arg)
-            {
-            case 0x10:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                x = v;
-              }
-              else
-              {
-                Serial.print(F("X:"));
-                Serial.print(x, HEX);
-              }
-
-              break;
-
-            case 0x11:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                p = v;
-              }
-              else
-              {
-                Serial.print(F("P:"));
-                Serial.print(p, HEX);
-              }
-
-              break;
-
-            case 0x12:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                d = v;
-              }
-              else
-              {
-                Serial.print(F("D:"));
-                Serial.print(d, HEX);
-              }
-
-              break;
-
-            case 0x13:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                df = v;
-              }
-              else
-              {
-                Serial.print(F("DF:"));
-                Serial.print(df, HEX);
-              }
-
-              break;
-
-            case 0x14:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                q = v;
-              }
-              else
-              {
-                Serial.print(F("Q:"));
-                Serial.print(q, HEX);
-              }
-
-            case 0x15:
-              if (terminate == '=')
-              {
-                uint16_t v = readhexbuf(&terminate);
-                t = v;
-              }
-              else
-              {
-                Serial.print(F("T:"));
-                Serial.print(t, HEX);
-              }
-
-              break;
-            }
-            visual_mon_status();
-          }
-        }
-
-        break;
-
-      case 'Q':
-      {
-        runstate = 0;
-        monactive = 0;
-        return 0;
-      }
-      case 'C':
-      case 'X':
-        monactive = 0;
-        return 1;
-      case 'I':
-        print2hex(input(arg));
-        break;
-
-      case 'O':
-      {
-        uint8_t v = readhexbuf(&terminate);
-        output(arg, v);
-        break;
-      }
-
-      case 'G':
-      {
-        if (terminate != '\r')
-          p = readhexbuf(&terminate);
-        reg[p] = arg;
-        runstate = 1;
-        monactive = 0;
-        return 0;
-      }
-
-      case 'M':
-      {
-        uint16_t arg2 = 0;
-        if (terminate == '=')
-        {
-          uint8_t d;
-          while (cmdbuf[cb] != 0)
-          {
-            d = readhexbuf(&terminate, 0);
-            if (noread == 0)
-              memwrite(arg++, d);
-            if (terminate == ';')
-              break;
-          }
-          if (terminate == ';')
-            break;
-          do
-          {
-            if (terminate == '\r' || terminate == '=')
-            {
-              Serial.print("\r\n");
-              print4hex(arg);
-              Serial.print(F(": "));
-            }
-            d = readhex(&terminate, 0);
-            if (terminate != ';' || noread == 0)
-              memwrite(arg++, d);
-          } while (terminate != ';');
-        }
-        else
-        {
-          uint16_t i, limit;
-          unsigned ct = 16;
-          if (terminate != '\r')
-            arg2 = readhexbuf(&terminate, 0);
-          if (arg2 == 0)
-            arg2 = 0x100;
-
-          // normalize
-          i = arg & 0xF; // how much off are we?
-          arg &= 0xFFF0;
-          arg2 += i;
-          if (arg2 & 0xF)
-          {
-            arg2 &= 0xFFF0;
-            arg2 += 0x10; // make sure we have a multiple of 16
-          }
-
-          limit = (arg + arg2) - 1;
-          if (limit < arg)
-            limit = 0xFFFF; // wrapped around!
-          if (visualmode)
-          {
-            if (noarg)
-            {
-              if (viscmd == 'M')
-                visadd += 0x80;
-            }
-            else
-              visadd = arg;
-            viscmd = 'M';
-            visual_mon_status();
-          }
-          else
-            mem_dump(arg, limit);
-        }
-        break;
-      }
-
-      default:
-        Serial.print((char)cmd);
-        Serial.println(F("?"));
-      }
+    default:
+      Serial.print((char)cmd);
+      Serial.println(F("?"));
     }
   }
+}
 
 #endif
